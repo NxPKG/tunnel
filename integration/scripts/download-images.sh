@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TEST_IMAGE=ghcr.io/khulnasoft/tunnel-test-images
+TEST_IMAGE=ghcr.io/khulnasoft-lab/vul-test-images
 
 CURRENT=$(cd $(dirname $0);pwd)
 
