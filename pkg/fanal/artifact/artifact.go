@@ -5,8 +5,9 @@ import (
 	"sort"
 
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-	misconf "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/config"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/fanal/walker"
+	"github.com/khulnasoft/tunnel/pkg/misconf"
 )
 
 type Option struct {
@@ -17,20 +18,36 @@ type Option struct {
 	SkipDirs          []string
 	FilePatterns      []string
 	NoProgress        bool
+	Insecure          bool
 	Offline           bool
-	InsecureSkipTLS   bool
 	AppDirs           []string
-	RepoBranch        string
-	RepoCommit        string
-	RepoTag           string
 	SBOMSources       []string
 	RekorURL          string
-	Platform          string
 	Slow              bool // Lower CPU and memory
+	AWSRegion         string
+	AWSEndpoint       string
+	FileChecksum      bool // For SPDX
+
+	// Git repositories
+	RepoBranch string
+	RepoCommit string
+	RepoTag    string
+
+	// For image scanning
+	ImageOption types.ImageOptions
 
 	MisconfScannerOption misconf.ScannerOption
 	SecretScannerOption  analyzer.SecretScannerOption
 	LicenseScannerOption analyzer.LicenseScannerOption
+
+	// File walk
+	WalkOption WalkOption
+}
+
+// WalkOption is a struct that allows users to define a custom walking behavior.
+// This option is only available when using Tunnel as an imported library and not through CLI flags.
+type WalkOption struct {
+	ErrorCallback walker.ErrorCallback
 }
 
 func (o *Option) Sort() {

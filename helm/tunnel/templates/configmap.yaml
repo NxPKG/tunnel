@@ -10,9 +10,10 @@ data:
 {{- if .Values.tunnel.cache.redis.enabled }}
   TUNNEL_CACHE_BACKEND: {{ .Values.tunnel.cache.redis.url | quote }}
   TUNNEL_CACHE_TTL: {{ .Values.tunnel.cache.redis.ttl | quote }}
+  TUNNEL_REDIS_TLS: {{ .Values.tunnel.cache.redis.tls | quote }}
 {{- end }}
   TUNNEL_DEBUG: {{ .Values.tunnel.debugMode | quote }}
-  TUNNEL_SKIP_UPDATE: {{ .Values.tunnel.skipUpdate | quote }}
+  TUNNEL_SKIP_DB_UPDATE: {{ .Values.tunnel.skipDBUpdate | quote }}
   TUNNEL_DB_REPOSITORY: {{ .Values.tunnel.dbRepository | quote }}
 {{- if .Values.httpProxy }}
   HTTP_PROXY: {{ .Values.httpProxy | quote }}
@@ -22,4 +23,7 @@ data:
 {{- end }}
 {{- if .Values.noProxy }}
   NO_PROXY: {{ .Values.noProxy | quote }}
+{{- end }}
+{{- with .Values.tunnel.extraEnvVars }}
+  {{- . | toYaml | nindent 2 }}
 {{- end }}

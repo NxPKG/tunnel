@@ -8,6 +8,7 @@ import (
 	"k8s.io/utils/clock"
 
 	"github.com/khulnasoft-lab/vul-db/pkg/vulnsrc/photon"
+	osver "github.com/khulnasoft/tunnel/pkg/detector/ospkg/version"
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/log"
 	"github.com/khulnasoft/tunnel/pkg/scanner/utils"
@@ -31,9 +32,9 @@ type options struct {
 
 type option func(*options)
 
-func WithClock(clock clock.Clock) option {
+func WithClock(c clock.Clock) option {
 	return func(opts *options) {
-		opts.clock = clock
+		opts.clock = c
 	}
 }
 
@@ -80,7 +81,7 @@ func (s *Scanner) Detect(osVer string, _ *ftypes.Repository, pkgs []ftypes.Packa
 				PkgID:            pkg.ID,
 				PkgName:          pkg.Name,
 				InstalledVersion: installed,
-				Ref:              pkg.Ref,
+				PkgRef:           pkg.Ref,
 				Layer:            pkg.Layer,
 				Custom:           adv.Custom,
 				DataSource:       adv.DataSource,
@@ -94,12 +95,7 @@ func (s *Scanner) Detect(osVer string, _ *ftypes.Repository, pkgs []ftypes.Packa
 	return vulns, nil
 }
 
-// IsSupportedVersion checks if the OS version reached end-of-support.
-func (s *Scanner) IsSupportedVersion(osFamily, osVer string) bool {
-	eol, ok := eolDates[osVer]
-	if !ok {
-		log.Logger.Warnf("This OS version is not on the EOL list: %s %s", osFamily, osVer)
-		return false
-	}
-	return s.clock.Now().Before(eol)
+// IsSupportedVersion checks if the version is supported.
+func (s *Scanner) IsSupportedVersion(osFamily ftypes.OSType, osVer string) bool {
+	return osver.Supported(s.clock, eolDates, osFamily, osVer)
 }

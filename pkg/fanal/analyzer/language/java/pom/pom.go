@@ -8,7 +8,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/aquasecurity/go-dep-parser/pkg/java/pom"
-
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer/language"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"

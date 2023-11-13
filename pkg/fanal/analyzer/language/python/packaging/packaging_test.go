@@ -14,10 +14,11 @@ import (
 
 func Test_packagingAnalyzer_Analyze(t *testing.T) {
 	tests := []struct {
-		name      string
-		inputFile string
-		want      *analyzer.AnalysisResult
-		wantErr   string
+		name            string
+		inputFile       string
+		includeChecksum bool
+		want            *analyzer.AnalysisResult
+		wantErr         string
 	}{
 		{
 			name:      "egg zip",
@@ -27,7 +28,7 @@ func Test_packagingAnalyzer_Analyze(t *testing.T) {
 					{
 						Type:     types.PythonPkg,
 						FilePath: "testdata/kitchen-1.2.6-py2.7.egg",
-						Libraries: []types.Package{
+						Libraries: types.Packages{
 							{
 								Name:     "kitchen",
 								Version:  "1.2.6",
@@ -40,19 +41,21 @@ func Test_packagingAnalyzer_Analyze(t *testing.T) {
 			},
 		},
 		{
-			name:      "egg-info",
-			inputFile: "testdata/happy.egg-info/PKG-INFO",
+			name:            "egg-info",
+			inputFile:       "testdata/happy.egg-info/PKG-INFO",
+			includeChecksum: true,
 			want: &analyzer.AnalysisResult{
 				Applications: []types.Application{
 					{
 						Type:     types.PythonPkg,
 						FilePath: "testdata/happy.egg-info/PKG-INFO",
-						Libraries: []types.Package{
+						Libraries: types.Packages{
 							{
 								Name:     "distlib",
 								Version:  "0.3.1",
 								Licenses: []string{"Python license"},
 								FilePath: "testdata/happy.egg-info/PKG-INFO",
+								Digest:   "sha1:d9d89d8ed3b2b683767c96814c9c5d3e57ef2e1b",
 							},
 						},
 					},
@@ -60,18 +63,39 @@ func Test_packagingAnalyzer_Analyze(t *testing.T) {
 			},
 		},
 		{
-			name:      "egg-info no-license",
-			inputFile: "testdata/no_license.egg-info/PKG-INFO",
+			name:      "egg-info license classifiers",
+			inputFile: "testdata/classifier-license.egg-info/PKG-INFO",
 			want: &analyzer.AnalysisResult{
 				Applications: []types.Application{
 					{
 						Type:     types.PythonPkg,
-						FilePath: "testdata/no_license.egg-info/PKG-INFO",
-						Libraries: []types.Package{
+						FilePath: "testdata/classifier-license.egg-info/PKG-INFO",
+						Libraries: types.Packages{
 							{
 								Name:     "setuptools",
 								Version:  "51.3.3",
-								FilePath: "testdata/no_license.egg-info/PKG-INFO",
+								Licenses: []string{"MIT License"},
+								FilePath: "testdata/classifier-license.egg-info/PKG-INFO",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:      "dist-info license classifiers",
+			inputFile: "testdata/classifier-license.dist-info/METADATA",
+			want: &analyzer.AnalysisResult{
+				Applications: []types.Application{
+					{
+						Type:     types.PythonPkg,
+						FilePath: "testdata/classifier-license.dist-info/METADATA",
+						Libraries: types.Packages{
+							{
+								Name:     "setuptools",
+								Version:  "51.3.3",
+								Licenses: []string{"MIT License"},
+								FilePath: "testdata/classifier-license.dist-info/METADATA",
 							},
 						},
 					},
@@ -86,7 +110,7 @@ func Test_packagingAnalyzer_Analyze(t *testing.T) {
 					{
 						Type:     types.PythonPkg,
 						FilePath: "testdata/happy.dist-info/METADATA",
-						Libraries: []types.Package{
+						Libraries: types.Packages{
 							{
 								Name:     "distlib",
 								Version:  "0.3.1",
@@ -119,6 +143,7 @@ func Test_packagingAnalyzer_Analyze(t *testing.T) {
 				FilePath: tt.inputFile,
 				Info:     stat,
 				Content:  f,
+				Options:  analyzer.AnalysisOptions{FileChecksum: tt.includeChecksum},
 			})
 
 			if tt.wantErr != "" {

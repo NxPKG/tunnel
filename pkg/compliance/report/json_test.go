@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/khulnasoft/tunnel/pkg/compliance/report"
 	"github.com/khulnasoft/tunnel/pkg/types"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestJSONWriter_Write(t *testing.T) {

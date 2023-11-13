@@ -4,13 +4,12 @@ import (
 	"context"
 	"strings"
 
-	"github.com/khulnasoft/tunnel/pkg/flag"
-
 	"golang.org/x/xerrors"
 
 	"github.com/aquasecurity/trivy-kubernetes/pkg/artifacts"
 	"github.com/aquasecurity/trivy-kubernetes/pkg/k8s"
 	"github.com/aquasecurity/trivy-kubernetes/pkg/trivyk8s"
+	"github.com/khulnasoft/tunnel/pkg/flag"
 	"github.com/khulnasoft/tunnel/pkg/log"
 )
 
@@ -21,15 +20,24 @@ func resourceRun(ctx context.Context, args []string, opts flag.Options, cluster 
 		return err
 	}
 
-	tunnelk8s := tunnelk8s.New(cluster, log.Logger).Namespace(getNamespace(opts, cluster.GetCurrentNamespace()))
 	runner := newRunner(opts, cluster.GetCurrentContext())
 
-	if len(name) == 0 { // pods or configmaps etc
+	var tunnelk trivyk8s.TunnelK8S
+
+	tunnelk = trivyk8s.New(cluster, log.Logger, trivyk8s.WithExcludeOwned(opts.ExcludeOwned))
+
+	if opts.AllNamespaces {
+		tunnelk = tunnelk.AllNamespaces()
+	} else {
+		tunnelk = tunnelk.Namespace(getNamespace(opts, cluster.GetCurrentNamespace()))
+	}
+
+	if name == "" { // pods or configmaps etc
 		if err = validateReportArguments(opts); err != nil {
 			return err
 		}
 
-		targets, err := tunnelk8s.Resources(kind).ListArtifacts(ctx)
+		targets, err := tunnelk.Resources(kind).ListArtifacts(ctx)
 		if err != nil {
 			return err
 		}
@@ -38,7 +46,7 @@ func resourceRun(ctx context.Context, args []string, opts flag.Options, cluster 
 	}
 
 	// pod/NAME or pod NAME etc
-	artifact, err := tunnelk8s.GetArtifact(ctx, kind, name)
+	artifact, err := tunnelk.GetArtifact(ctx, kind, name)
 	if err != nil {
 		return err
 	}

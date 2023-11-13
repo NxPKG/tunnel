@@ -10,6 +10,7 @@ import (
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
 	r "github.com/khulnasoft/tunnel/pkg/rpc"
 	"github.com/khulnasoft/tunnel/pkg/types"
+	xstrings "github.com/khulnasoft/tunnel/pkg/x/strings"
 	rpc "github.com/khulnasoft/tunnel/rpc/scanner"
 )
 
@@ -57,15 +58,18 @@ func NewScanner(scannerOptions ScannerOption, opts ...Option) Scanner {
 		opt(o)
 	}
 
-	return Scanner{customHeaders: scannerOptions.CustomHeaders, client: o.rpcClient}
+	return Scanner{
+		customHeaders: scannerOptions.CustomHeaders,
+		client:        o.rpcClient,
+	}
 }
 
 // Scan scans the image
-func (s Scanner) Scan(ctx context.Context, target, artifactKey string, blobKeys []string, opts types.ScanOptions) (types.Results, *ftypes.OS, error) {
+func (s Scanner) Scan(ctx context.Context, target, artifactKey string, blobKeys []string, opts types.ScanOptions) (types.Results, ftypes.OS, error) {
 	ctx = WithCustomHeaders(ctx, s.customHeaders)
 
 	// Convert to the rpc struct
-	licenseCategories := map[string]*rpc.Licenses{}
+	licenseCategories := make(map[string]*rpc.Licenses)
 	for category, names := range opts.LicenseCategories {
 		licenseCategories[string(category)] = &rpc.Licenses{Names: names}
 	}
@@ -79,15 +83,16 @@ func (s Scanner) Scan(ctx context.Context, target, artifactKey string, blobKeys 
 			BlobIds:    blobKeys,
 			Options: &rpc.ScanOptions{
 				VulnType:          opts.VulnType,
-				SecurityChecks:    opts.SecurityChecks,
+				Scanners:          xstrings.ToStringSlice(opts.Scanners),
 				ListAllPackages:   opts.ListAllPackages,
 				LicenseCategories: licenseCategories,
+				IncludeDevDeps:    opts.IncludeDevDeps,
 			},
 		})
 		return err
 	})
 	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to detect vulnerabilities via RPC: %w", err)
+		return nil, ftypes.OS{}, xerrors.Errorf("failed to detect vulnerabilities via RPC: %w", err)
 	}
 
 	return r.ConvertFromRPCResults(res.Results), r.ConvertFromRPCOS(res.Os), nil

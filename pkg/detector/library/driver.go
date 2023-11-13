@@ -4,23 +4,23 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/khulnasoft/tunnel/pkg/detector/library/compare/maven"
-
 	"golang.org/x/xerrors"
 
 	"github.com/khulnasoft-lab/vul-db/pkg/db"
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	"github.com/khulnasoft-lab/vul-db/pkg/vulnsrc/vulnerability"
 	"github.com/khulnasoft/tunnel/pkg/detector/library/compare"
+	"github.com/khulnasoft/tunnel/pkg/detector/library/compare/maven"
 	"github.com/khulnasoft/tunnel/pkg/detector/library/compare/npm"
 	"github.com/khulnasoft/tunnel/pkg/detector/library/compare/pep440"
 	"github.com/khulnasoft/tunnel/pkg/detector/library/compare/rubygems"
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/log"
 	"github.com/khulnasoft/tunnel/pkg/types"
 )
 
 // NewDriver returns a driver according to the library type
-func NewDriver(libType string) (Driver, error) {
+func NewDriver(libType ftypes.LangType) (Driver, bool) {
 	var ecosystem dbTypes.Ecosystem
 	var comparer compare.Comparer
 
@@ -49,19 +49,45 @@ func NewDriver(libType string) (Driver, error) {
 	case ftypes.Pipenv, ftypes.Poetry, ftypes.Pip, ftypes.PythonPkg:
 		ecosystem = vulnerability.Pip
 		comparer = pep440.Comparer{}
+	case ftypes.Pub:
+		ecosystem = vulnerability.Pub
+		comparer = compare.GenericComparer{}
+	case ftypes.Hex:
+		ecosystem = vulnerability.Erlang
+		comparer = compare.GenericComparer{}
 	case ftypes.Conan:
 		ecosystem = vulnerability.Conan
 		// Only semver can be used for version ranges
 		// https://docs.conan.io/en/latest/versioning/version_ranges.html
 		comparer = compare.GenericComparer{}
+	case ftypes.Swift:
+		// Swift uses semver
+		// https://www.swift.org/package-manager/#importing-dependencies
+		ecosystem = vulnerability.Swift
+		comparer = compare.GenericComparer{}
+	case ftypes.Cocoapods:
+		// CocoaPods uses RubyGems version specifiers
+		// https://guides.cocoapods.org/making/making-a-cocoapod.html#cocoapods-versioning-specifics
+		ecosystem = vulnerability.Cocoapods
+		comparer = rubygems.Comparer{}
+	case ftypes.CondaPkg:
+		log.Logger.Warn("Conda package is supported for SBOM, not for vulnerability scanning")
+		return Driver{}, false
+	case ftypes.Bitnami:
+		ecosystem = vulnerability.Bitnami
+		comparer = compare.GenericComparer{}
+	case ftypes.K8sUpstream:
+		ecosystem = vulnerability.Kubernetes
+		comparer = compare.GenericComparer{}
 	default:
-		return Driver{}, xerrors.Errorf("unsupported type %s", libType)
+		log.Logger.Warnf("The %q library type is not supported for vulnerability scanning", libType)
+		return Driver{}, false
 	}
 	return Driver{
 		ecosystem: ecosystem,
 		comparer:  comparer,
 		dbc:       db.Config{},
-	}, nil
+	}, true
 }
 
 // Driver represents security advisories for each programming language

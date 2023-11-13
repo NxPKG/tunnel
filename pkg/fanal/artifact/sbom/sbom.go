@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"golang.org/x/xerrors"
 
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
@@ -73,7 +73,7 @@ func (a Artifact) Inspect(_ context.Context) (types.ArtifactReference, error) {
 
 	var artifactType types.ArtifactType
 	switch format {
-	case sbom.FormatCycloneDXJSON, sbom.FormatCycloneDXXML, sbom.FormatAttestCycloneDXJSON:
+	case sbom.FormatCycloneDXJSON, sbom.FormatCycloneDXXML, sbom.FormatAttestCycloneDXJSON, sbom.FormatLegacyCosignAttestCycloneDXJSON:
 		artifactType = types.ArtifactCycloneDX
 	case sbom.FormatSPDXTV, sbom.FormatSPDXJSON:
 		artifactType = types.ArtifactSPDX

@@ -29,6 +29,7 @@ resources:
 rbac:
   create: true
   pspEnabled: false
+  pspAnnotations: {}
 
 podSecurityContext:
   runAsUser: 65534
@@ -93,12 +94,12 @@ tunnel:
   # NOTE: When this is set the previous parameters are ignored.
   #
   # registryCredentialsExistingSecret: name-of-existing-secret
-  # skipUpdate the flag to enable or disable Tunnel DB downloads from GitHub
+  # skipDBUpdate the flag to enable or disable Tunnel DB downloads from GitHub
   #
   # You might want to enable this flag in test or CI/CD environments to avoid GitHub rate limiting issues.
   # If the flag is enabled you have to manually download the `tunnel.db` file and mount it in the
   # `/home/scanner/.cache/tunnel/db/tunnel.db` path (see `cacheDir`).
-  skipUpdate: false
+  skipDBUpdate: false
   # OCI repository to retrieve the tunnel vulnerability database from
   dbRepository: ghcr.io/khulnasoft-lab/vul-db
   # Tunnel supports filesystem and redis as caching backend
@@ -114,6 +115,7 @@ tunnel:
       enabled: false
       url: ""  # e.g. redis://redis.redis.svc:6379
       ttl: ""  # e.g 3600s, 24h
+      tls: false
   serviceAccount:
     annotations: {}
       # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/IAM_ROLE_NAME
@@ -124,6 +126,8 @@ tunnel:
   # existingSecret if an existing secret has been created outside the chart.
   # Overrides gitHubToken, registryUsername, registryPassword, serverToken
   existingSecret: ""
+  # extraEnvVars to be set on the container
+  extraEnvVars: {}
 
 service:
   # If specified, the name used for the Tunnel service.
@@ -132,6 +136,8 @@ service:
   type: ClusterIP
   # port Kubernetes service port
   port: 4954
+  # sessionAffinity Kubernetes service session affinity
+  sessionAffinity: ClientIP
 
 ingress:
   enabled: false

@@ -8,10 +8,10 @@ import (
 )
 
 // Detect scans and returns vulnerabilities of library
-func Detect(libType string, pkgs []ftypes.Package) ([]types.DetectedVulnerability, error) {
-	driver, err := NewDriver(libType)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to initialize a driver: %w", err)
+func Detect(libType ftypes.LangType, pkgs []ftypes.Package) ([]types.DetectedVulnerability, error) {
+	driver, ok := NewDriver(libType)
+	if !ok {
+		return nil, nil
 	}
 
 	vulns, err := detect(driver, pkgs)
@@ -33,7 +33,7 @@ func detect(driver Driver, libs []ftypes.Package) ([]types.DetectedVulnerability
 		for i := range vulns {
 			vulns[i].Layer = lib.Layer
 			vulns[i].PkgPath = lib.FilePath
-			vulns[i].Ref = lib.Ref
+			vulns[i].PkgRef = lib.Ref
 		}
 		vulnerabilities = append(vulnerabilities, vulns...)
 	}

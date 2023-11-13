@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"runtime"
 
 	xlog "github.com/masahiro331/go-xfs-filesystem/log"
 	"go.uber.org/zap"
@@ -58,6 +59,12 @@ func NewLogger(debug, disable bool) (*zap.SugaredLogger, error) {
 		return zapcore.DebugLevel < lvl && lvl < zapcore.ErrorLevel
 	})
 
+	encoderLevel := zapcore.CapitalColorLevelEncoder
+	// when running on Windows, don't log with color
+	if runtime.GOOS == "windows" {
+		encoderLevel = zapcore.CapitalLevelEncoder
+	}
+
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "Time",
 		LevelKey:       "Level",
@@ -65,7 +72,7 @@ func NewLogger(debug, disable bool) (*zap.SugaredLogger, error) {
 		CallerKey:      "Caller",
 		MessageKey:     "Msg",
 		StacktraceKey:  "St",
-		EncodeLevel:    zapcore.CapitalColorLevelEncoder,
+		EncodeLevel:    encoderLevel,
 		EncodeTime:     zapcore.ISO8601TimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
@@ -106,4 +113,11 @@ func Fatal(err error) {
 		Logger.Fatalf("%+v", err)
 	}
 	Logger.Fatal(err)
+}
+
+func String(key, val string) zap.Field {
+	if key == "" || val == "" {
+		return zap.Skip()
+	}
+	return zap.String(key, val)
 }

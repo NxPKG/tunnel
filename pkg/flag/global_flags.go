@@ -1,11 +1,12 @@
 package flag
 
 import (
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/khulnasoft/tunnel/pkg/utils"
+	"github.com/khulnasoft/tunnel/pkg/utils/fsutils"
 )
 
 var (
@@ -13,7 +14,7 @@ var (
 		Name:       "config",
 		ConfigName: "config",
 		Shorthand:  "c",
-		Value:      "tunnel.yaml",
+		Default:    "tunnel.yaml",
 		Usage:      "config path",
 		Persistent: true,
 	}
@@ -21,7 +22,7 @@ var (
 		Name:       "version",
 		ConfigName: "version",
 		Shorthand:  "v",
-		Value:      false,
+		Default:    false,
 		Usage:      "show version",
 		Persistent: true,
 	}
@@ -29,7 +30,7 @@ var (
 		Name:       "quiet",
 		ConfigName: "quiet",
 		Shorthand:  "q",
-		Value:      false,
+		Default:    false,
 		Usage:      "suppress progress bar and log output",
 		Persistent: true,
 	}
@@ -37,35 +38,35 @@ var (
 		Name:       "debug",
 		ConfigName: "debug",
 		Shorthand:  "d",
-		Value:      false,
+		Default:    false,
 		Usage:      "debug mode",
 		Persistent: true,
 	}
 	InsecureFlag = Flag{
 		Name:       "insecure",
 		ConfigName: "insecure",
-		Value:      false,
-		Usage:      "allow insecure server connections when using TLS",
+		Default:    false,
+		Usage:      "allow insecure server connections",
 		Persistent: true,
 	}
 	TimeoutFlag = Flag{
 		Name:       "timeout",
 		ConfigName: "timeout",
-		Value:      time.Second * 300, // 5 mins
+		Default:    time.Second * 300, // 5 mins
 		Usage:      "timeout",
 		Persistent: true,
 	}
 	CacheDirFlag = Flag{
 		Name:       "cache-dir",
 		ConfigName: "cache.dir",
-		Value:      utils.DefaultCacheDir(),
+		Default:    fsutils.CacheDir(),
 		Usage:      "cache directory",
 		Persistent: true,
 	}
 	GenerateDefaultConfigFlag = Flag{
 		Name:       "generate-default-config",
 		ConfigName: "generate-default-config",
-		Value:      false,
+		Default:    false,
 		Usage:      "write the default config to tunnel-default.yaml",
 		Persistent: true,
 	}
@@ -109,7 +110,16 @@ func NewGlobalFlagGroup() *GlobalFlagGroup {
 }
 
 func (f *GlobalFlagGroup) flags() []*Flag {
-	return []*Flag{f.ConfigFile, f.ShowVersion, f.Quiet, f.Debug, f.Insecure, f.Timeout, f.CacheDir, f.GenerateDefaultConfig}
+	return []*Flag{
+		f.ConfigFile,
+		f.ShowVersion,
+		f.Quiet,
+		f.Debug,
+		f.Insecure,
+		f.Timeout,
+		f.CacheDir,
+		f.GenerateDefaultConfig,
+	}
 }
 
 func (f *GlobalFlagGroup) AddFlags(cmd *cobra.Command) {
@@ -128,12 +138,15 @@ func (f *GlobalFlagGroup) Bind(cmd *cobra.Command) error {
 }
 
 func (f *GlobalFlagGroup) ToOptions() GlobalOptions {
+	// Keep TUNNEL_NON_SSL for backward compatibility
+	insecure := getBool(f.Insecure) || os.Getenv("TUNNEL_NON_SSL") != ""
+
 	return GlobalOptions{
 		ConfigFile:            getString(f.ConfigFile),
 		ShowVersion:           getBool(f.ShowVersion),
 		Quiet:                 getBool(f.Quiet),
 		Debug:                 getBool(f.Debug),
-		Insecure:              getBool(f.Insecure),
+		Insecure:              insecure,
 		Timeout:               getDuration(f.Timeout),
 		CacheDir:              getString(f.CacheDir),
 		GenerateDefaultConfig: getBool(f.GenerateDefaultConfig),

@@ -1,7 +1,6 @@
 package flag_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -9,21 +8,24 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
+	defsecTypes "github.com/aquasecurity/defsec/pkg/types"
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
+	"github.com/khulnasoft/tunnel/pkg/compliance/spec"
 	"github.com/khulnasoft/tunnel/pkg/flag"
 	"github.com/khulnasoft/tunnel/pkg/log"
-	"github.com/khulnasoft/tunnel/pkg/report"
+	"github.com/khulnasoft/tunnel/pkg/types"
 )
 
 func TestReportFlagGroup_ToOptions(t *testing.T) {
 	type fields struct {
-		format         string
+		format         types.Format
 		template       string
 		dependencyTree bool
 		listAllPkgs    bool
 		ignoreUnfixed  bool
 		ignoreFile     string
 		exitCode       int
+		exitOnEOSL     bool
 		ignorePolicy   string
 		output         string
 		severities     string
@@ -40,36 +42,7 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 		{
 			name:   "happy default (without flags)",
 			fields: fields{},
-			want: flag.ReportOptions{
-				Output: os.Stdout,
-			},
-		},
-		{
-			name: "happy path with a low case severity",
-			fields: fields{
-				severities: "critical",
-			},
-			want: flag.ReportOptions{
-				Output: os.Stdout,
-				Severities: []dbTypes.Severity{
-					dbTypes.SeverityCritical,
-				},
-			},
-		},
-		{
-			name: "happy path with an unknown severity",
-			fields: fields{
-				severities: "CRITICAL,INVALID",
-			},
-			want: flag.ReportOptions{
-				Output: os.Stdout,
-				Severities: []dbTypes.Severity{
-					dbTypes.SeverityCritical,
-				},
-			},
-			wantLogs: []string{
-				"unknown severity option: unknown severity: INVALID",
-			},
+			want:   flag.ReportOptions{},
 		},
 		{
 			name: "happy path with an cyclonedx",
@@ -79,9 +52,8 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 				listAllPkgs: true,
 			},
 			want: flag.ReportOptions{
-				Output:      os.Stdout,
 				Severities:  []dbTypes.Severity{dbTypes.SeverityCritical},
-				Format:      report.FormatCycloneDX,
+				Format:      types.FormatCycloneDX,
 				ListAllPkgs: true,
 			},
 		},
@@ -99,11 +71,10 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 				`Severities: ["CRITICAL"]`,
 			},
 			want: flag.ReportOptions{
-				Output: os.Stdout,
 				Severities: []dbTypes.Severity{
 					dbTypes.SeverityCritical,
 				},
-				Format:      report.FormatCycloneDX,
+				Format:      types.FormatCycloneDX,
 				ListAllPkgs: true,
 			},
 		},
@@ -117,7 +88,6 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 				"'--template' is ignored because '--format template' is not specified. Use '--template' option with '--format template' option.",
 			},
 			want: flag.ReportOptions{
-				Output:     os.Stdout,
 				Severities: []dbTypes.Severity{dbTypes.SeverityLow},
 				Template:   "@contrib/gitlab.tpl",
 			},
@@ -133,7 +103,6 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 				"'--template' is ignored because '--format json' is specified. Use '--template' option with '--format template' option.",
 			},
 			want: flag.ReportOptions{
-				Output:     os.Stdout,
 				Format:     "json",
 				Severities: []dbTypes.Severity{dbTypes.SeverityLow},
 				Template:   "@contrib/gitlab.tpl",
@@ -149,7 +118,6 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 				"'--format template' is ignored because '--template' is not specified. Specify '--template' option when you use '--format template'.",
 			},
 			want: flag.ReportOptions{
-				Output:     os.Stdout,
 				Format:     "template",
 				Severities: []dbTypes.Severity{dbTypes.SeverityLow},
 			},
@@ -166,7 +134,6 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 			},
 			want: flag.ReportOptions{
 				Format:      "table",
-				Output:      os.Stdout,
 				Severities:  []dbTypes.Severity{dbTypes.SeverityLow},
 				ListAllPkgs: true,
 			},
@@ -174,12 +141,29 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 		{
 			name: "happy path with compliance",
 			fields: fields{
-				compliane:  "nsa",
-				severities: "low",
+				compliane:  "@testdata/example-spec.yaml",
+				severities: dbTypes.SeverityLow.String(),
 			},
 			want: flag.ReportOptions{
-				Output:     os.Stdout,
-				Compliance: "nsa",
+				Compliance: spec.ComplianceSpec{
+					Spec: defsecTypes.Spec{
+						ID:          "0001",
+						Title:       "my-custom-spec",
+						Description: "My fancy spec",
+						Version:     "1.2",
+						Controls: []defsecTypes.Control{
+							{
+								ID:          "1.1",
+								Name:        "Unencrypted S3 bucket",
+								Description: "S3 Buckets should be encrypted to protect the data that is stored within them if access is compromised.",
+								Checks: []defsecTypes.SpecCheck{
+									{ID: "AVD-AWS-0088"},
+								},
+								Severity: "HIGH",
+							},
+						},
+					},
+				},
 				Severities: []dbTypes.Severity{dbTypes.SeverityLow},
 			},
 		},
@@ -193,7 +177,7 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 			core, obs := observer.New(level)
 			log.Logger = zap.New(core).Sugar()
 
-			viper.Set(flag.FormatFlag.ConfigName, tt.fields.format)
+			viper.Set(flag.FormatFlag.ConfigName, string(tt.fields.format))
 			viper.Set(flag.TemplateFlag.ConfigName, tt.fields.template)
 			viper.Set(flag.DependencyTreeFlag.ConfigName, tt.fields.dependencyTree)
 			viper.Set(flag.ListAllPkgsFlag.ConfigName, tt.fields.listAllPkgs)
@@ -201,6 +185,7 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 			viper.Set(flag.IgnoreUnfixedFlag.ConfigName, tt.fields.ignoreUnfixed)
 			viper.Set(flag.IgnorePolicyFlag.ConfigName, tt.fields.ignorePolicy)
 			viper.Set(flag.ExitCodeFlag.ConfigName, tt.fields.exitCode)
+			viper.Set(flag.ExitOnEOLFlag.ConfigName, tt.fields.exitOnEOSL)
 			viper.Set(flag.OutputFlag.ConfigName, tt.fields.output)
 			viper.Set(flag.SeverityFlag.ConfigName, tt.fields.severities)
 			viper.Set(flag.ComplianceFlag.ConfigName, tt.fields.compliane)
@@ -214,12 +199,13 @@ func TestReportFlagGroup_ToOptions(t *testing.T) {
 				IgnoreFile:     &flag.IgnoreFileFlag,
 				IgnorePolicy:   &flag.IgnorePolicyFlag,
 				ExitCode:       &flag.ExitCodeFlag,
+				ExitOnEOL:      &flag.ExitOnEOLFlag,
 				Output:         &flag.OutputFlag,
 				Severity:       &flag.SeverityFlag,
 				Compliance:     &flag.ComplianceFlag,
 			}
 
-			got, err := f.ToOptions(os.Stdout)
+			got, err := f.ToOptions()
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.want, got, "ToOptions()")
 

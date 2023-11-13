@@ -91,7 +91,7 @@
             "Severity": {
                 "Label": "{{ $severity }}"
             },
-            "Title": "Tunnel found a misconfiguration in {{ $target }}: {{ .Title }}",
+            "Title": "Tunnel found a misconfiguration in {{ $target }}: {{ escapeString .Title }}",
             "Description": {{ escapeString $description | printf "%q" }},
             "Remediation": {
                 "Recommendation": {

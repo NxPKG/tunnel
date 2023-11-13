@@ -37,7 +37,7 @@ var ErrCacheNotFound = fmt.Errorf("cache record not found")
 var ErrCacheIncompatible = fmt.Errorf("cache record used incomatible schema")
 var ErrCacheExpired = fmt.Errorf("cache record expired")
 
-func New(cacheDir string, maxCacheAge time.Duration, accountID string, region string) *Cache {
+func New(cacheDir string, maxCacheAge time.Duration, accountID, region string) *Cache {
 	return &Cache{
 		path:      path.Join(cacheDir, "cloud", "aws", accountID, strings.ToLower(region), "data.json"),
 		accountID: accountID,
@@ -52,6 +52,7 @@ func (c *Cache) load() (*CacheData, error) {
 	if err != nil {
 		return nil, ErrCacheNotFound
 	}
+	defer func() { _ = m.Close() }()
 
 	var data CacheData
 	if err := json.NewDecoder(m).Decode(&data); err != nil {
@@ -69,7 +70,7 @@ func (c *Cache) load() (*CacheData, error) {
 	return &data, nil
 }
 
-func (c *Cache) ListServices(required []string) (included []string, missing []string) {
+func (c *Cache) ListServices(required []string) (included, missing []string) {
 
 	data, err := c.load()
 	if err != nil {
@@ -100,12 +101,11 @@ func (c *Cache) LoadState() (*state.State, error) {
 	return data.State, nil
 }
 
-func (c *Cache) AddServices(state *state.State, includedServices []string) error {
-
+func (c *Cache) AddServices(s *state.State, includedServices []string) error {
 	data := &CacheData{
 		SchemaVersion: SchemaVersion,
-		State:         state,
-		Services:      map[string]ServiceMetadata{},
+		State:         s,
+		Services:      make(map[string]ServiceMetadata),
 		Updated:       time.Now(),
 	}
 
@@ -127,5 +127,6 @@ func (c *Cache) AddServices(state *state.State, includedServices []string) error
 	if err != nil {
 		return err
 	}
+	defer func() { _ = f.Close() }()
 	return json.NewEncoder(f).Encode(data)
 }

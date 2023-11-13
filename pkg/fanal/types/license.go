@@ -1,5 +1,7 @@
 package types
 
+import "github.com/samber/lo"
+
 type LicenseType string
 
 const (
@@ -24,8 +26,28 @@ type LicenseFile struct {
 	Type     LicenseType
 	FilePath string
 	PkgName  string
-	Findings []LicenseFinding
+	Findings LicenseFindings
 	Layer    Layer `json:",omitempty"`
+}
+
+type LicenseFindings []LicenseFinding
+
+func (findings LicenseFindings) Len() int {
+	return len(findings)
+}
+
+func (findings LicenseFindings) Swap(i, j int) {
+	findings[i], findings[j] = findings[j], findings[i]
+}
+
+func (findings LicenseFindings) Less(i, j int) bool {
+	return findings[i].Name < findings[j].Name
+}
+
+func (findings LicenseFindings) Names() []string {
+	return lo.Map(findings, func(finding LicenseFinding, _ int) string {
+		return finding.Name
+	})
 }
 
 type LicenseFinding struct {

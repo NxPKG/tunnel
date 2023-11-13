@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"sync"
@@ -13,11 +14,12 @@ import (
 
 	"github.com/khulnasoft-lab/vul-db/pkg/db"
 	"github.com/khulnasoft-lab/vul-db/pkg/metadata"
-	dbFile "github.com/khulnasoft/tunnel/pkg/db"
 	dbc "github.com/khulnasoft/tunnel/pkg/db"
 	"github.com/khulnasoft/tunnel/pkg/fanal/cache"
+	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/log"
-	"github.com/khulnasoft/tunnel/pkg/utils"
+	"github.com/khulnasoft/tunnel/pkg/utils/fsutils"
+	"github.com/khulnasoft/tunnel/pkg/version"
 	rpcCache "github.com/khulnasoft/tunnel/rpc/cache"
 	rpcScanner "github.com/khulnasoft/tunnel/rpc/scanner"
 )
@@ -32,43 +34,48 @@ type Server struct {
 	token        string
 	tokenHeader  string
 	dbRepository string
+
+	// For OCI registries
+	types.RegistryOptions
 }
 
 // NewServer returns an instance of Server
-func NewServer(appVersion, addr, cacheDir, token, tokenHeader, dbRepository string) Server {
+func NewServer(appVersion, addr, cacheDir, token, tokenHeader, dbRepository string, opt types.RegistryOptions) Server {
 	return Server{
-		appVersion:   appVersion,
-		addr:         addr,
-		cacheDir:     cacheDir,
-		token:        token,
-		tokenHeader:  tokenHeader,
-		dbRepository: dbRepository,
+		appVersion:      appVersion,
+		addr:            addr,
+		cacheDir:        cacheDir,
+		token:           token,
+		tokenHeader:     tokenHeader,
+		dbRepository:    dbRepository,
+		RegistryOptions: opt,
 	}
 }
 
 // ListenAndServe starts Tunnel server
-func (s Server) ListenAndServe(serverCache cache.Cache, insecure bool) error {
+func (s Server) ListenAndServe(serverCache cache.Cache, skipDBUpdate bool) error {
 	requestWg := &sync.WaitGroup{}
 	dbUpdateWg := &sync.WaitGroup{}
 
 	go func() {
-		worker := newDBWorker(dbc.NewClient(s.cacheDir, true, insecure, dbc.WithDBRepository(s.dbRepository)))
+		worker := newDBWorker(dbc.NewClient(s.cacheDir, true, dbc.WithDBRepository(s.dbRepository)))
 		ctx := context.Background()
 		for {
 			time.Sleep(updateInterval)
-			if err := worker.update(ctx, s.appVersion, s.cacheDir, dbUpdateWg, requestWg); err != nil {
+			if err := worker.update(ctx, s.appVersion, s.cacheDir, skipDBUpdate, dbUpdateWg, requestWg, s.RegistryOptions); err != nil {
 				log.Logger.Errorf("%+v\n", err)
 			}
 		}
 	}()
 
-	mux := newServeMux(serverCache, dbUpdateWg, requestWg, s.token, s.tokenHeader)
+	mux := newServeMux(serverCache, dbUpdateWg, requestWg, s.token, s.tokenHeader, s.cacheDir)
 	log.Logger.Infof("Listening %s...", s.addr)
 
 	return http.ListenAndServe(s.addr, mux)
 }
 
-func newServeMux(serverCache cache.Cache, dbUpdateWg, requestWg *sync.WaitGroup, token, tokenHeader string) *http.ServeMux {
+func newServeMux(serverCache cache.Cache, dbUpdateWg, requestWg *sync.WaitGroup,
+	token, tokenHeader, cacheDir string) *http.ServeMux {
 	withWaitGroup := func(base http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Stop processing requests during DB update
@@ -99,6 +106,14 @@ func newServeMux(serverCache cache.Cache, dbUpdateWg, requestWg *sync.WaitGroup,
 		}
 	})
 
+	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(version.NewVersionInfo(cacheDir)); err != nil {
+			log.Logger.Errorf("get version error: %s", err)
+		}
+	})
+
 	return mux
 }
 
@@ -113,17 +128,17 @@ func withToken(base http.Handler, token, tokenHeader string) http.Handler {
 }
 
 type dbWorker struct {
-	dbClient dbFile.Operation
+	dbClient dbc.Operation
 }
 
-func newDBWorker(dbClient dbFile.Operation) dbWorker {
+func newDBWorker(dbClient dbc.Operation) dbWorker {
 	return dbWorker{dbClient: dbClient}
 }
 
 func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
-	dbUpdateWg, requestWg *sync.WaitGroup) error {
+	skipDBUpdate bool, dbUpdateWg, requestWg *sync.WaitGroup, opt types.RegistryOptions) error {
 	log.Logger.Debug("Check for DB update...")
-	needsUpdate, err := w.dbClient.NeedsUpdate(appVersion, false)
+	needsUpdate, err := w.dbClient.NeedsUpdate(appVersion, skipDBUpdate)
 	if err != nil {
 		return xerrors.Errorf("failed to check if db needs an update")
 	} else if !needsUpdate {
@@ -131,20 +146,20 @@ func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	}
 
 	log.Logger.Info("Updating DB...")
-	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg); err != nil {
+	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg, opt); err != nil {
 		return xerrors.Errorf("failed DB hot update: %w", err)
 	}
 	return nil
 }
 
-func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, requestWg *sync.WaitGroup) error {
+func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, requestWg *sync.WaitGroup, opt types.RegistryOptions) error {
 	tmpDir, err := os.MkdirTemp("", "db")
 	if err != nil {
 		return xerrors.Errorf("failed to create a temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err = w.dbClient.Download(ctx, tmpDir); err != nil {
+	if err = w.dbClient.Download(ctx, tmpDir, opt); err != nil {
 		return xerrors.Errorf("failed to download vulnerability DB: %w", err)
 	}
 
@@ -160,12 +175,12 @@ func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, re
 	}
 
 	// Copy tunnel.db
-	if _, err = utils.CopyFile(db.Path(tmpDir), db.Path(cacheDir)); err != nil {
+	if _, err = fsutils.CopyFile(db.Path(tmpDir), db.Path(cacheDir)); err != nil {
 		return xerrors.Errorf("failed to copy the database file: %w", err)
 	}
 
 	// Copy metadata.json
-	if _, err = utils.CopyFile(metadata.Path(tmpDir), metadata.Path(cacheDir)); err != nil {
+	if _, err = fsutils.CopyFile(metadata.Path(tmpDir), metadata.Path(cacheDir)); err != nil {
 		return xerrors.Errorf("failed to copy the metadata file: %w", err)
 	}
 

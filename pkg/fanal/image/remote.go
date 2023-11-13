@@ -2,59 +2,27 @@ package image
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"golang.org/x/xerrors"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/image/token"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
-	"github.com/khulnasoft/tunnel/pkg/log"
+	"github.com/khulnasoft/tunnel/pkg/remote"
 )
 
-func tryRemote(ctx context.Context, imageName string, ref name.Reference, option types.DockerOption) (types.Image, error) {
-	var remoteOpts []remote.Option
-	if option.InsecureSkipTLSVerify {
-		t := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		remoteOpts = append(remoteOpts, remote.WithTransport(t))
-	}
+func tryRemote(ctx context.Context, imageName string, ref name.Reference, option types.ImageOptions) (types.Image, func(), error) {
+	// This function doesn't need cleanup
+	cleanup := func() {}
 
-	if option.Platform != "" {
-		s, err := parsePlatform(ref, option.Platform)
-		if err != nil {
-			return nil, err
-		}
-		remoteOpts = append(remoteOpts, remote.WithPlatform(*s))
-	}
-
-	domain := ref.Context().RegistryStr()
-	auth := token.GetToken(ctx, domain, option)
-
-	if auth.Username != "" && auth.Password != "" {
-		remoteOpts = append(remoteOpts, remote.WithAuth(&auth))
-	} else if option.RegistryToken != "" {
-		bearer := authn.Bearer{Token: option.RegistryToken}
-		remoteOpts = append(remoteOpts, remote.WithAuth(&bearer))
-	} else {
-		remoteOpts = append(remoteOpts, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	}
-
-	desc, err := remote.Get(ref, remoteOpts...)
+	desc, err := remote.Get(ctx, ref, option.RegistryOptions)
 	if err != nil {
-		return nil, err
+		return nil, cleanup, err
 	}
-
 	img, err := desc.Image()
 	if err != nil {
-		return nil, err
+		return nil, cleanup, err
 	}
 
 	// Return v1.Image if the image is found in Docker Registry
@@ -63,42 +31,8 @@ func tryRemote(ctx context.Context, imageName string, ref name.Reference, option
 		Image:      img,
 		ref:        implicitReference{ref: ref},
 		descriptor: desc,
-	}, nil
+	}, cleanup, nil
 
-}
-
-func parsePlatform(ref name.Reference, p string) (*v1.Platform, error) {
-	// OS wildcard, implicitly pick up the first os found in the image list.
-	// e.g. */amd64
-	if strings.HasPrefix(p, "*/") {
-		index, err := remote.Index(ref)
-		if err != nil {
-			// Not a multi-arch image
-			if _, ok := err.(*remote.ErrSchema1); ok {
-				log.Logger.Debug("Ignored --platform as the image is not multi-arch")
-				return nil, nil
-			}
-			return nil, xerrors.Errorf("remote index error: %w", err)
-		}
-		m, err := index.IndexManifest()
-		if err != nil {
-			return nil, xerrors.Errorf("remote index manifest error: %w", err)
-		}
-		if len(m.Manifests) == 0 {
-			log.Logger.Debug("Ignored --platform as the image is not multi-arch")
-			return nil, nil
-		}
-		if m.Manifests[0].Platform != nil {
-			// Replace with the detected OS
-			// e.g. */amd64 => linux/amd64
-			p = m.Manifests[0].Platform.OS + strings.TrimPrefix(p, "*")
-		}
-	}
-	platform, err := v1.ParsePlatform(p)
-	if err != nil {
-		return nil, xerrors.Errorf("platform parse error: %w", err)
-	}
-	return platform, nil
 }
 
 type remoteImage struct {
@@ -114,10 +48,6 @@ func (img remoteImage) Name() string {
 
 func (img remoteImage) ID() (string, error) {
 	return ID(img)
-}
-
-func (img remoteImage) LayerIDs() ([]string, error) {
-	return LayerIDs(img)
 }
 
 func (img remoteImage) RepoTags() []string {

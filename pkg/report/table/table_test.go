@@ -8,7 +8,7 @@ import (
 
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
-	"github.com/khulnasoft/tunnel/pkg/report"
+	"github.com/khulnasoft/tunnel/pkg/report/table"
 	"github.com/khulnasoft/tunnel/pkg/types"
 )
 
@@ -30,8 +30,8 @@ func TestReportWriter_Table(t *testing.T) {
 							VulnerabilityID:  "CVE-2020-0001",
 							PkgName:          "foo",
 							InstalledVersion: "1.2.3",
-							FixedVersion:     "3.4.5",
 							PrimaryURL:       "https://avd.khulnasoft.com/nvd/cve-2020-0001",
+							Status:           dbTypes.StatusWillNotFix,
 							Vulnerability: dbTypes.Vulnerability{
 								Title:       "foobar",
 								Description: "baz",
@@ -46,12 +46,12 @@ test ()
 =======
 Total: 1 (MEDIUM: 0, HIGH: 1)
 
-┌─────────┬───────────────┬──────────┬───────────────────┬───────────────┬───────────────────────────────────────────┐
-│ Library │ Vulnerability │ Severity │ Installed Version │ Fixed Version │                   Title                   │
-├─────────┼───────────────┼──────────┼───────────────────┼───────────────┼───────────────────────────────────────────┤
-│ foo     │ CVE-2020-0001 │ HIGH     │ 1.2.3             │ 3.4.5         │ foobar                                    │
-│         │               │          │                   │               │ https://avd.khulnasoft.com/nvd/cve-2020-0001 │
-└─────────┴───────────────┴──────────┴───────────────────┴───────────────┴───────────────────────────────────────────┘
+┌─────────┬───────────────┬──────────┬──────────────┬───────────────────┬───────────────┬───────────────────────────────────────────┐
+│ Library │ Vulnerability │ Severity │    Status    │ Installed Version │ Fixed Version │                   Title                   │
+├─────────┼───────────────┼──────────┼──────────────┼───────────────────┼───────────────┼───────────────────────────────────────────┤
+│ foo     │ CVE-2020-0001 │ HIGH     │ will_not_fix │ 1.2.3             │               │ foobar                                    │
+│         │               │          │              │                   │               │ https://avd.khulnasoft.com/nvd/cve-2020-0001 │
+└─────────┴───────────────┴──────────┴──────────────┴───────────────────┴───────────────┴───────────────────────────────────────────┘
 `,
 		},
 		{
@@ -68,6 +68,7 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 							InstalledVersion: "1.2.3",
 							FixedVersion:     "3.4.5",
 							PrimaryURL:       "https://avd.khulnasoft.com/nvd/cve-2020-0001",
+							Status:           dbTypes.StatusFixed,
 							Vulnerability: dbTypes.Vulnerability{
 								Title:       "foobar",
 								Description: "baz",
@@ -82,12 +83,12 @@ test ()
 =======
 Total: 1 (MEDIUM: 0, HIGH: 1)
 
-┌───────────┬───────────────┬──────────┬───────────────────┬───────────────┬───────────────────────────────────────────┐
-│  Library  │ Vulnerability │ Severity │ Installed Version │ Fixed Version │                   Title                   │
-├───────────┼───────────────┼──────────┼───────────────────┼───────────────┼───────────────────────────────────────────┤
-│ foo (bar) │ CVE-2020-0001 │ HIGH     │ 1.2.3             │ 3.4.5         │ foobar                                    │
-│           │               │          │                   │               │ https://avd.khulnasoft.com/nvd/cve-2020-0001 │
-└───────────┴───────────────┴──────────┴───────────────────┴───────────────┴───────────────────────────────────────────┘
+┌───────────┬───────────────┬──────────┬────────┬───────────────────┬───────────────┬───────────────────────────────────────────┐
+│  Library  │ Vulnerability │ Severity │ Status │ Installed Version │ Fixed Version │                   Title                   │
+├───────────┼───────────────┼──────────┼────────┼───────────────────┼───────────────┼───────────────────────────────────────────┤
+│ foo (bar) │ CVE-2020-0001 │ HIGH     │ fixed  │ 1.2.3             │ 3.4.5         │ foobar                                    │
+│           │               │          │        │                   │               │ https://avd.khulnasoft.com/nvd/cve-2020-0001 │
+└───────────┴───────────────┴──────────┴────────┴───────────────────┴───────────────┴───────────────────────────────────────────┘
 `,
 		},
 		{
@@ -102,6 +103,7 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 							PkgName:          "foo",
 							InstalledVersion: "1.2.3",
 							FixedVersion:     "3.4.5",
+							Status:           dbTypes.StatusFixed,
 							Vulnerability: dbTypes.Vulnerability{
 								Description: "foobar",
 								Severity:    "HIGH",
@@ -115,11 +117,11 @@ test ()
 =======
 Total: 1 (MEDIUM: 0, HIGH: 1)
 
-┌─────────┬───────────────┬──────────┬───────────────────┬───────────────┬────────┐
-│ Library │ Vulnerability │ Severity │ Installed Version │ Fixed Version │ Title  │
-├─────────┼───────────────┼──────────┼───────────────────┼───────────────┼────────┤
-│ foo     │ CVE-2020-0001 │ HIGH     │ 1.2.3             │ 3.4.5         │ foobar │
-└─────────┴───────────────┴──────────┴───────────────────┴───────────────┴────────┘
+┌─────────┬───────────────┬──────────┬────────┬───────────────────┬───────────────┬────────┐
+│ Library │ Vulnerability │ Severity │ Status │ Installed Version │ Fixed Version │ Title  │
+├─────────┼───────────────┼──────────┼────────┼───────────────────┼───────────────┼────────┤
+│ foo     │ CVE-2020-0001 │ HIGH     │ fixed  │ 1.2.3             │ 3.4.5         │ foobar │
+└─────────┴───────────────┴──────────┴────────┴───────────────────┴───────────────┴────────┘
 `,
 		},
 		{
@@ -135,6 +137,7 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 							InstalledVersion: "1.2.3",
 							FixedVersion:     "3.4.5",
 							PrimaryURL:       "https://avd.khulnasoft.com/nvd/cve-2020-1234",
+							Status:           dbTypes.StatusFixed,
 							Vulnerability: dbTypes.Vulnerability{
 								Title:       "a b c d e f g h i j k l m n o p q r s t u v",
 								Description: "foobar",
@@ -149,12 +152,12 @@ test ()
 =======
 Total: 1 (MEDIUM: 0, HIGH: 1)
 
-┌─────────┬───────────────┬──────────┬───────────────────┬───────────────┬───────────────────────────────────────────┐
-│ Library │ Vulnerability │ Severity │ Installed Version │ Fixed Version │                   Title                   │
-├─────────┼───────────────┼──────────┼───────────────────┼───────────────┼───────────────────────────────────────────┤
-│ foo     │ CVE-2020-1234 │ HIGH     │ 1.2.3             │ 3.4.5         │ a b c d e f g h i j k l...                │
-│         │               │          │                   │               │ https://avd.khulnasoft.com/nvd/cve-2020-1234 │
-└─────────┴───────────────┴──────────┴───────────────────┴───────────────┴───────────────────────────────────────────┘
+┌─────────┬───────────────┬──────────┬────────┬───────────────────┬───────────────┬───────────────────────────────────────────┐
+│ Library │ Vulnerability │ Severity │ Status │ Installed Version │ Fixed Version │                   Title                   │
+├─────────┼───────────────┼──────────┼────────┼───────────────────┼───────────────┼───────────────────────────────────────────┤
+│ foo     │ CVE-2020-1234 │ HIGH     │ fixed  │ 1.2.3             │ 3.4.5         │ a b c d e f g h i j k l...                │
+│         │               │          │        │                   │               │ https://avd.khulnasoft.com/nvd/cve-2020-1234 │
+└─────────┴───────────────┴──────────┴────────┴───────────────────┴───────────────┴───────────────────────────────────────────┘
 `,
 		},
 		{
@@ -162,7 +165,7 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 			expectedOutput: ``,
 		},
 		{
-			name: "happy path with vulnerability origin graph",
+			name: "happy path with vulnerability origin graph with direct dependency info",
 			results: types.Results{
 				{
 					Target: "package-lock.json",
@@ -170,25 +173,33 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 					Type:   "npm",
 					Packages: []ftypes.Package{
 						{
-							ID:      "node-fetch@1.7.3",
-							Name:    "node-fetch",
-							Version: "1.7.3",
+							ID:       "node-fetch@1.7.3",
+							Name:     "node-fetch",
+							Version:  "1.7.3",
+							Indirect: true,
 						},
 						{
-							ID:      "isomorphic-fetch@2.2.1",
-							Name:    "isomorphic-fetch",
-							Version: "2.2.1",
+							ID:       "isomorphic-fetch@2.2.1",
+							Name:     "isomorphic-fetch",
+							Version:  "2.2.1",
+							Indirect: true,
 							DependsOn: []string{
 								"node-fetch@1.7.3",
 							},
 						},
 						{
-							ID:      "fbjs@0.8.18",
-							Name:    "fbjs",
-							Version: "0.8.18",
+							ID:       "fbjs@0.8.18",
+							Name:     "fbjs",
+							Version:  "0.8.18",
+							Indirect: true,
 							DependsOn: []string{
 								"isomorphic-fetch@2.2.1",
 							},
+						},
+						{
+							ID:      "sanitize-html@1.20.0",
+							Name:    "sanitize-html",
+							Version: "1.20.0",
 						},
 						{
 							ID:      "styled-components@3.1.3",
@@ -211,6 +222,7 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 							},
 							InstalledVersion: "1.7.3",
 							FixedVersion:     "2.6.7, 3.1.1",
+							Status:           dbTypes.StatusFixed,
 						},
 						{
 							VulnerabilityID: "CVE-2021-26539",
@@ -223,6 +235,7 @@ Total: 1 (MEDIUM: 0, HIGH: 1)
 							},
 							InstalledVersion: "1.20.0",
 							FixedVersion:     "2.3.1",
+							Status:           dbTypes.StatusFixed,
 						},
 					},
 				},
@@ -232,22 +245,99 @@ package-lock.json (npm)
 =======================
 Total: 2 (MEDIUM: 1, HIGH: 1)
 
-┌───────────────┬────────────────┬──────────┬───────────────────┬───────────────┬────────┐
-│    Library    │ Vulnerability  │ Severity │ Installed Version │ Fixed Version │ Title  │
-├───────────────┼────────────────┼──────────┼───────────────────┼───────────────┼────────┤
-│ node-fetch    │ CVE-2022-0235  │ HIGH     │ 1.7.3             │ 2.6.7, 3.1.1  │ foobar │
-├───────────────┼────────────────┼──────────┼───────────────────┼───────────────┤        │
-│ sanitize-html │ CVE-2021-26539 │ MEDIUM   │ 1.20.0            │ 2.3.1         │        │
-└───────────────┴────────────────┴──────────┴───────────────────┴───────────────┴────────┘
+┌───────────────┬────────────────┬──────────┬────────┬───────────────────┬───────────────┬────────┐
+│    Library    │ Vulnerability  │ Severity │ Status │ Installed Version │ Fixed Version │ Title  │
+├───────────────┼────────────────┼──────────┼────────┼───────────────────┼───────────────┼────────┤
+│ node-fetch    │ CVE-2022-0235  │ HIGH     │ fixed  │ 1.7.3             │ 2.6.7, 3.1.1  │ foobar │
+├───────────────┼────────────────┼──────────┤        ├───────────────────┼───────────────┤        │
+│ sanitize-html │ CVE-2021-26539 │ MEDIUM   │        │ 1.20.0            │ 2.3.1         │        │
+└───────────────┴────────────────┴──────────┴────────┴───────────────────┴───────────────┴────────┘
 
 Dependency Origin Tree (Reversed)
 =================================
 package-lock.json
 ├── node-fetch@1.7.3, (MEDIUM: 0, HIGH: 1)
-│   └── isomorphic-fetch@2.2.1
-│       └── fbjs@0.8.18
-│           └── styled-components@3.1.3
+│   └── ...(omitted)...
+│       └── styled-components@3.1.3
 └── sanitize-html@1.20.0, (MEDIUM: 1, HIGH: 0)
+`,
+		},
+		{
+			name: "happy path with vulnerability origin graph without direct dependency info",
+			results: types.Results{
+				{
+					Target: "package-lock.json",
+					Class:  types.ClassLangPkg,
+					Type:   "npm",
+					Packages: []ftypes.Package{
+						{
+							ID:       "node-fetch@1.7.3",
+							Name:     "node-fetch",
+							Version:  "1.7.3",
+							Indirect: true,
+						},
+						{
+							ID:       "isomorphic-fetch@2.2.1",
+							Name:     "isomorphic-fetch",
+							Version:  "2.2.1",
+							Indirect: true,
+							DependsOn: []string{
+								"node-fetch@1.7.3",
+							},
+						},
+						{
+							ID:       "fbjs@0.8.18",
+							Name:     "fbjs",
+							Version:  "0.8.18",
+							Indirect: true,
+							DependsOn: []string{
+								"isomorphic-fetch@2.2.1",
+							},
+						},
+						{
+							ID:       "styled-components@3.1.3",
+							Name:     "styled-components",
+							Version:  "3.1.3",
+							Indirect: true,
+							DependsOn: []string{
+								"fbjs@0.8.18",
+							},
+						},
+					},
+					Vulnerabilities: []types.DetectedVulnerability{
+						{
+							VulnerabilityID: "CVE-2022-0235",
+							PkgID:           "node-fetch@1.7.3",
+							PkgName:         "node-fetch",
+							Vulnerability: dbTypes.Vulnerability{
+								Title:       "foobar",
+								Description: "baz",
+								Severity:    "HIGH",
+							},
+							InstalledVersion: "1.7.3",
+							FixedVersion:     "2.6.7, 3.1.1",
+							Status:           dbTypes.StatusFixed,
+						},
+					},
+				},
+			},
+			expectedOutput: `
+package-lock.json (npm)
+=======================
+Total: 1 (MEDIUM: 0, HIGH: 1)
+
+┌────────────┬───────────────┬──────────┬────────┬───────────────────┬───────────────┬────────┐
+│  Library   │ Vulnerability │ Severity │ Status │ Installed Version │ Fixed Version │ Title  │
+├────────────┼───────────────┼──────────┼────────┼───────────────────┼───────────────┼────────┤
+│ node-fetch │ CVE-2022-0235 │ HIGH     │ fixed  │ 1.7.3             │ 2.6.7, 3.1.1  │ foobar │
+└────────────┴───────────────┴──────────┴────────┴───────────────────┴───────────────┴────────┘
+
+Dependency Origin Tree (Reversed)
+=================================
+package-lock.json
+└── node-fetch@1.7.3, (MEDIUM: 0, HIGH: 1)
+    └── ...(omitted)...
+        └── styled-components@3.1.3
 `,
 		},
 	}
@@ -255,13 +345,16 @@ package-lock.json
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tableWritten := bytes.Buffer{}
-			err := report.Write(types.Report{Results: tc.results}, report.Option{
-				Format:             report.FormatTable,
+			writer := table.Writer{
 				Output:             &tableWritten,
 				Tree:               true,
 				IncludeNonFailures: tc.includeNonFailures,
-				Severities:         []dbTypes.Severity{dbTypes.SeverityHigh, dbTypes.SeverityMedium},
-			})
+				Severities: []dbTypes.Severity{
+					dbTypes.SeverityHigh,
+					dbTypes.SeverityMedium,
+				},
+			}
+			err := writer.Write(types.Report{Results: tc.results})
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedOutput, tableWritten.String(), tc.name)
 		})

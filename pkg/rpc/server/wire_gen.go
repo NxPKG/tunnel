@@ -8,26 +8,23 @@ package server
 
 import (
 	"github.com/khulnasoft-lab/vul-db/pkg/db"
-	"github.com/khulnasoft/tunnel/pkg/detector/ospkg"
 	"github.com/khulnasoft/tunnel/pkg/fanal/applier"
 	"github.com/khulnasoft/tunnel/pkg/fanal/cache"
+	"github.com/khulnasoft/tunnel/pkg/scanner/langpkg"
 	"github.com/khulnasoft/tunnel/pkg/scanner/local"
+	"github.com/khulnasoft/tunnel/pkg/scanner/ospkg"
 	"github.com/khulnasoft/tunnel/pkg/vulnerability"
 )
 
 // Injectors from inject.go:
 
-func initializeScanServer(localArtifactCache cache.Cache) *ScanServer {
-	v := _wireValue
-	applierApplier := applier.NewApplier(localArtifactCache, v...)
-	detector := ospkg.Detector{}
+func initializeScanServer(localArtifactCache cache.LocalArtifactCache) *ScanServer {
+	applierApplier := applier.NewApplier(localArtifactCache)
+	scanner := ospkg.NewScanner()
+	langpkgScanner := langpkg.NewScanner()
 	config := db.Config{}
 	client := vulnerability.NewClient(config)
-	scanner := local.NewScanner(applierApplier, detector, client)
-	scanServer := NewScanServer(scanner)
+	localScanner := local.NewScanner(applierApplier, scanner, langpkgScanner, client)
+	scanServer := NewScanServer(localScanner)
 	return scanServer
 }
-
-var (
-	_wireValue = []applier.Option(nil)
-)

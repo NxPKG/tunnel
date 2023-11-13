@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"github.com/khulnasoft/tunnel/pkg/fanal/handler"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/fanal/walker"
+	"github.com/khulnasoft/tunnel/pkg/log"
 	"github.com/khulnasoft/tunnel/pkg/semaphore"
 )
 
@@ -39,8 +41,10 @@ func NewArtifact(rootPath string, c cache.ArtifactCache, opt artifact.Option) (a
 
 	a, err := analyzer.NewAnalyzerGroup(analyzer.AnalyzerOptions{
 		Group:                opt.AnalyzerGroup,
+		Slow:                 opt.Slow,
 		FilePatterns:         opt.FilePatterns,
 		DisabledAnalyzers:    opt.DisabledAnalyzers,
+		MisconfScannerOption: opt.MisconfScannerOption,
 		SecretScannerOption:  opt.SecretScannerOption,
 		LicenseScannerOption: opt.LicenseScannerOption,
 	})
@@ -49,9 +53,10 @@ func NewArtifact(rootPath string, c cache.ArtifactCache, opt artifact.Option) (a
 	}
 
 	return Artifact{
-		rootPath:       filepath.Clean(rootPath),
-		cache:          c,
-		walker:         walker.NewFS(buildAbsPaths(rootPath, opt.SkipFiles), buildAbsPaths(rootPath, opt.SkipDirs), opt.Slow),
+		rootPath: filepath.ToSlash(filepath.Clean(rootPath)),
+		cache:    c,
+		walker: walker.NewFS(buildPathsToSkip(rootPath, opt.SkipFiles), buildPathsToSkip(rootPath, opt.SkipDirs),
+			opt.Slow, opt.WalkOption.ErrorCallback),
 		analyzer:       a,
 		handlerManager: handlerManager,
 
@@ -59,42 +64,100 @@ func NewArtifact(rootPath string, c cache.ArtifactCache, opt artifact.Option) (a
 	}, nil
 }
 
-func buildAbsPaths(base string, paths []string) []string {
-	var absPaths []string
-	for _, path := range paths {
-		if filepath.IsAbs(path) {
-			absPaths = append(absPaths, path)
-		} else {
-			absPaths = append(absPaths, filepath.Join(base, path))
-		}
+// buildPathsToSkip builds correct patch for skipDirs and skipFiles
+func buildPathsToSkip(base string, paths []string) []string {
+	var relativePaths []string
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		log.Logger.Warnf("Failed to get an absolute path of %s: %s", base, err)
+		return nil
 	}
-	return absPaths
+	for _, path := range paths {
+		// Supports three types of flag specification.
+		// All of them are converted into the relative path from the root directory.
+		// 1. Relative skip dirs/files from the root directory
+		//     The specified dirs and files will be used as is.
+		//       e.g. $ tunnel fs --skip-dirs bar ./foo
+		//     The skip dir from the root directory will be `bar/`.
+		// 2. Relative skip dirs/files from the working directory
+		//     The specified dirs and files wll be converted to the relative path from the root directory.
+		//       e.g. $ tunnel fs --skip-dirs ./foo/bar ./foo
+		//     The skip dir will be converted to `bar/`.
+		// 3. Absolute skip dirs/files
+		//     The specified dirs and files wll be converted to the relative path from the root directory.
+		//       e.g. $ tunnel fs --skip-dirs /bar/foo/baz ./foo
+		//     When the working directory is
+		//       3.1 /bar: the skip dir will be converted to `baz/`.
+		//       3.2 /hoge : the skip dir will be converted to `../../bar/foo/baz/`.
+
+		absSkipPath, err := filepath.Abs(path)
+		if err != nil {
+			log.Logger.Warnf("Failed to get an absolute path of %s: %s", base, err)
+			continue
+		}
+		rel, err := filepath.Rel(absBase, absSkipPath)
+		if err != nil {
+			log.Logger.Warnf("Failed to get a relative path from %s to %s: %s", base, path, err)
+			continue
+		}
+
+		var relPath string
+		switch {
+		case !filepath.IsAbs(path) && strings.HasPrefix(rel, ".."):
+			// #1: Use the path as is
+			relPath = path
+		case !filepath.IsAbs(path) && !strings.HasPrefix(rel, ".."):
+			// #2: Use the relative path from the root directory
+			relPath = rel
+		case filepath.IsAbs(path):
+			// #3: Use the relative path from the root directory
+			relPath = rel
+		}
+		relPath = filepath.ToSlash(relPath)
+		relativePaths = append(relativePaths, relPath)
+	}
+	return relativePaths
 }
 
 func (a Artifact) Inspect(ctx context.Context) (types.ArtifactReference, error) {
 	var wg sync.WaitGroup
 	result := analyzer.NewAnalysisResult()
 	limit := semaphore.New(a.artifactOption.Slow)
+	opts := analyzer.AnalysisOptions{
+		Offline:      a.artifactOption.Offline,
+		FileChecksum: a.artifactOption.FileChecksum,
+	}
 
-	err := a.walker.Walk(a.rootPath, func(filePath string, info os.FileInfo, opener analyzer.Opener) error {
-		directory := a.rootPath
+	// Prepare filesystem for post analysis
+	composite, err := a.analyzer.PostAnalyzerFS()
+	if err != nil {
+		return types.ArtifactReference{}, xerrors.Errorf("failed to prepare filesystem for post analysis: %w", err)
+	}
+
+	err = a.walker.Walk(a.rootPath, func(filePath string, info os.FileInfo, opener analyzer.Opener) error {
+		dir := a.rootPath
 
 		// When the directory is the same as the filePath, a file was given
-		// instead of a directory, rewrite the directory in this case.
-		if a.rootPath == filePath {
-			directory = filepath.Dir(a.rootPath)
+		// instead of a directory, rewrite the file path and directory in this case.
+		if filePath == "." {
+			dir, filePath = path.Split(a.rootPath)
 		}
 
-		// For exported rootfs (e.g. images/alpine/etc/alpine-release)
-		filePath, err := filepath.Rel(directory, filePath)
-		if err != nil {
-			return xerrors.Errorf("filepath rel (%s): %w", filePath, err)
-		}
-
-		opts := analyzer.AnalysisOptions{Offline: a.artifactOption.Offline}
-		if err = a.analyzer.AnalyzeFile(ctx, &wg, limit, result, directory, filePath, info, opener, nil, opts); err != nil {
+		if err := a.analyzer.AnalyzeFile(ctx, &wg, limit, result, dir, filePath, info, opener, nil, opts); err != nil {
 			return xerrors.Errorf("analyze file (%s): %w", filePath, err)
 		}
+
+		// Skip post analysis if the file is not required
+		analyzerTypes := a.analyzer.RequiredPostAnalyzers(filePath, info)
+		if len(analyzerTypes) == 0 {
+			return nil
+		}
+
+		// Build filesystem for post analysis
+		if err := composite.CreateLink(analyzerTypes, dir, filePath, filepath.Join(dir, filePath)); err != nil {
+			return xerrors.Errorf("failed to create link: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -104,18 +167,24 @@ func (a Artifact) Inspect(ctx context.Context) (types.ArtifactReference, error) 
 	// Wait for all the goroutine to finish.
 	wg.Wait()
 
+	// Post-analysis
+	if err = a.analyzer.PostAnalyze(ctx, composite, result, opts); err != nil {
+		return types.ArtifactReference{}, xerrors.Errorf("post analysis error: %w", err)
+	}
+
 	// Sort the analysis result for consistent results
 	result.Sort()
 
 	blobInfo := types.BlobInfo{
-		SchemaVersion:   types.BlobJSONSchemaVersion,
-		OS:              result.OS,
-		Repository:      result.Repository,
-		PackageInfos:    result.PackageInfos,
-		Applications:    result.Applications,
-		Secrets:         result.Secrets,
-		Licenses:        result.Licenses,
-		CustomResources: result.CustomResources,
+		SchemaVersion:     types.BlobJSONSchemaVersion,
+		OS:                result.OS,
+		Repository:        result.Repository,
+		PackageInfos:      result.PackageInfos,
+		Applications:      result.Applications,
+		Misconfigurations: result.Misconfigurations,
+		Secrets:           result.Secrets,
+		Licenses:          result.Licenses,
+		CustomResources:   result.CustomResources,
 	}
 
 	if err = a.handlerManager.PostHandle(ctx, result, &blobInfo); err != nil {
@@ -134,10 +203,11 @@ func (a Artifact) Inspect(ctx context.Context) (types.ArtifactReference, error) 
 	// get hostname
 	var hostName string
 	b, err := os.ReadFile(filepath.Join(a.rootPath, "etc", "hostname"))
-	if err == nil && string(b) != "" {
+	if err == nil && len(b) != 0 {
 		hostName = strings.TrimSpace(string(b))
 	} else {
-		hostName = a.rootPath
+		// To slash for Windows
+		hostName = filepath.ToSlash(a.rootPath)
 	}
 
 	return types.ArtifactReference{

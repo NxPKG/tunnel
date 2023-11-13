@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/fatih/color"
 	"golang.org/x/exp/slices"
 
-	"github.com/khulnasoft-lab/tml"
-
 	"github.com/khulnasoft-lab/table"
+	"github.com/khulnasoft-lab/tml"
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	"github.com/khulnasoft/tunnel/pkg/types"
+	xio "github.com/khulnasoft/tunnel/pkg/x/io"
 )
 
 var (
@@ -131,7 +132,12 @@ func summarize(specifiedSeverities []dbTypes.Severity, severityCount map[string]
 }
 
 func IsOutputToTerminal(output io.Writer) bool {
-	if output != os.Stdout {
+	if runtime.GOOS == "windows" {
+		// if its windows, we don't support formatting
+		return false
+	}
+
+	if output != xio.NopCloser(os.Stdout) {
 		return false
 	}
 	o, err := os.Stdout.Stat()

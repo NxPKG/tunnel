@@ -2,33 +2,34 @@ package daemon
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	dimage "github.com/docker/docker/api/types/image"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/khulnasoft-lab/testdocker/engine"
 )
 
-func TestMain(m *testing.M) {
-	imagePaths := map[string]string{
-		"alpine:3.10":            "../../test/testdata/alpine-310.tar.gz",
-		"alpine:3.11":            "../../test/testdata/alpine-311.tar.gz",
-		"gcr.io/distroless/base": "../../test/testdata/distroless.tar.gz",
-	}
+var imagePaths = map[string]string{
+	"alpine:3.10":            "../../test/testdata/alpine-310.tar.gz",
+	"alpine:3.11":            "../../test/testdata/alpine-311.tar.gz",
+	"gcr.io/distroless/base": "../../test/testdata/distroless.tar.gz",
+}
 
-	// for Docker
-	opt := engine.Option{
-		APIVersion: "1.38",
-		ImagePaths: imagePaths,
-	}
+// for Docker
+var opt = engine.Option{
+	APIVersion: "1.38",
+	ImagePaths: imagePaths,
+}
+
+func TestMain(m *testing.M) {
 	te := engine.NewDockerEngine(opt)
 	defer te.Close()
 
@@ -59,7 +60,7 @@ func Test_image_ConfigName(t *testing.T) {
 			ref, err := name.ParseReference(tt.imageName)
 			require.NoError(t, err)
 
-			img, cleanup, err := DockerImage(ref)
+			img, cleanup, err := DockerImage(ref, "")
 			require.NoError(t, err)
 			defer cleanup()
 
@@ -68,6 +69,50 @@ func Test_image_ConfigName(t *testing.T) {
 			assert.Equal(t, tt.wantErr, err != nil)
 		})
 	}
+}
+
+func Test_image_ConfigNameWithCustomDockerHost(t *testing.T) {
+
+	ref, err := name.ParseReference("alpine:3.11")
+	require.NoError(t, err)
+
+	eo := engine.Option{
+		APIVersion: opt.APIVersion,
+		ImagePaths: opt.ImagePaths,
+	}
+
+	var dockerHostParam string
+
+	if runtime.GOOS != "windows" {
+		runtimeDir, err := os.MkdirTemp("", "daemon")
+		require.NoError(t, err)
+
+		dir := filepath.Join(runtimeDir, "image")
+		err = os.MkdirAll(dir, os.ModePerm)
+		require.NoError(t, err)
+
+		customDockerHost := filepath.Join(dir, "image-test-unix-socket.sock")
+		eo.UnixDomainSocket = customDockerHost
+		dockerHostParam = "unix://" + customDockerHost
+	}
+
+	te := engine.NewDockerEngine(eo)
+	defer te.Close()
+
+	if runtime.GOOS == "windows" {
+		dockerHostParam = te.Listener.Addr().Network() + "://" + te.Listener.Addr().String()
+	}
+
+	img, cleanup, err := DockerImage(ref, dockerHostParam)
+	require.NoError(t, err)
+	defer cleanup()
+
+	conf, err := img.ConfigName()
+	assert.Equal(t, v1.Hash{
+		Algorithm: "sha256",
+		Hex:       "a187dde48cd289ac374ad8539930628314bc581a481cdb41409c9289419ddb72",
+	}, conf)
+	assert.Nil(t, err)
 }
 
 func Test_image_ConfigFile(t *testing.T) {
@@ -156,7 +201,7 @@ func Test_image_ConfigFile(t *testing.T) {
 			ref, err := name.ParseReference(tt.imageName)
 			require.NoError(t, err)
 
-			img, cleanup, err := DockerImage(ref)
+			img, cleanup, err := DockerImage(ref, "")
 			require.NoError(t, err)
 			defer cleanup()
 
@@ -201,7 +246,7 @@ func Test_image_LayerByDiffID(t *testing.T) {
 			ref, err := name.ParseReference(tt.imageName)
 			require.NoError(t, err)
 
-			img, cleanup, err := DockerImage(ref)
+			img, cleanup, err := DockerImage(ref, "")
 			require.NoError(t, err)
 			defer cleanup()
 
@@ -230,7 +275,7 @@ func Test_image_RawConfigFile(t *testing.T) {
 			ref, err := name.ParseReference(tt.imageName)
 			require.NoError(t, err)
 
-			img, cleanup, err := DockerImage(ref)
+			img, cleanup, err := DockerImage(ref, "")
 			require.NoError(t, err)
 			defer cleanup()
 
@@ -241,7 +286,7 @@ func Test_image_RawConfigFile(t *testing.T) {
 				return
 			}
 
-			want, err := ioutil.ReadFile(tt.goldenFile)
+			want, err := os.ReadFile(tt.goldenFile)
 			require.NoError(t, err)
 
 			require.JSONEq(t, string(want), string(got))

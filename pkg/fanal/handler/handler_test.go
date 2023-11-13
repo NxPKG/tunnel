@@ -4,13 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-
-	"github.com/khulnasoft/tunnel/pkg/fanal/artifact"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
+	"github.com/khulnasoft/tunnel/pkg/fanal/artifact"
 	"github.com/khulnasoft/tunnel/pkg/fanal/handler"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 )

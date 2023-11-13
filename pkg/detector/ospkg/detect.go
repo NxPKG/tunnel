@@ -3,11 +3,13 @@ package ospkg
 import (
 	"time"
 
+	"github.com/samber/lo"
 	"golang.org/x/xerrors"
 
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/alma"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/alpine"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/amazon"
+	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/chainguard"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/debian"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/mariner"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/oracle"
@@ -16,7 +18,7 @@ import (
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/rocky"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/suse"
 	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/ubuntu"
-	fos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
+	"github.com/khulnasoft/tunnel/pkg/detector/ospkg/wolfi"
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/log"
 	"github.com/khulnasoft/tunnel/pkg/types"
@@ -26,39 +28,38 @@ var (
 	// ErrUnsupportedOS defines error for unsupported OS
 	ErrUnsupportedOS = xerrors.New("unsupported os")
 
-	drivers = map[string]Driver{
-		fos.Alpine:       alpine.NewScanner(),
-		fos.Alma:         alma.NewScanner(),
-		fos.Amazon:       amazon.NewScanner(),
-		fos.CBLMariner:   mariner.NewScanner(),
-		fos.Debian:       debian.NewScanner(),
-		fos.Ubuntu:       ubuntu.NewScanner(),
-		fos.RedHat:       redhat.NewScanner(),
-		fos.CentOS:       redhat.NewScanner(),
-		fos.Rocky:        rocky.NewScanner(),
-		fos.Oracle:       oracle.NewScanner(),
-		fos.OpenSUSELeap: suse.NewScanner(suse.OpenSUSE),
-		fos.SLES:         suse.NewScanner(suse.SUSEEnterpriseLinux),
-		fos.Photon:       photon.NewScanner(),
+	drivers = map[ftypes.OSType]Driver{
+		ftypes.Alpine:       alpine.NewScanner(),
+		ftypes.Alma:         alma.NewScanner(),
+		ftypes.Amazon:       amazon.NewScanner(),
+		ftypes.CBLMariner:   mariner.NewScanner(),
+		ftypes.Debian:       debian.NewScanner(),
+		ftypes.Ubuntu:       ubuntu.NewScanner(),
+		ftypes.RedHat:       redhat.NewScanner(),
+		ftypes.CentOS:       redhat.NewScanner(),
+		ftypes.Rocky:        rocky.NewScanner(),
+		ftypes.Oracle:       oracle.NewScanner(),
+		ftypes.OpenSUSELeap: suse.NewScanner(suse.OpenSUSE),
+		ftypes.SLES:         suse.NewScanner(suse.SUSEEnterpriseLinux),
+		ftypes.Photon:       photon.NewScanner(),
+		ftypes.Wolfi:        wolfi.NewScanner(),
+		ftypes.Chainguard:   chainguard.NewScanner(),
 	}
 )
 
 // RegisterDriver is defined for extensibility and not supposed to be used in Tunnel.
-func RegisterDriver(name string, driver Driver) {
+func RegisterDriver(name ftypes.OSType, driver Driver) {
 	drivers[name] = driver
 }
 
 // Driver defines operations for OS package scan
 type Driver interface {
 	Detect(string, *ftypes.Repository, []ftypes.Package) ([]types.DetectedVulnerability, error)
-	IsSupportedVersion(string, string) bool
+	IsSupportedVersion(ftypes.OSType, string) bool
 }
 
-// Detector implements Operation
-type Detector struct{}
-
 // Detect detects the vulnerabilities
-func (d Detector) Detect(_, osFamily, osName string, repo *ftypes.Repository, _ time.Time, pkgs []ftypes.Package) ([]types.DetectedVulnerability, bool, error) {
+func Detect(_, osFamily ftypes.OSType, osName string, repo *ftypes.Repository, _ time.Time, pkgs []ftypes.Package) ([]types.DetectedVulnerability, bool, error) {
 	driver, err := newDriver(osFamily)
 	if err != nil {
 		return nil, false, ErrUnsupportedOS
@@ -66,7 +67,12 @@ func (d Detector) Detect(_, osFamily, osName string, repo *ftypes.Repository, _ 
 
 	eosl := !driver.IsSupportedVersion(osFamily, osName)
 
-	vulns, err := driver.Detect(osName, repo, pkgs)
+	// Package `gpg-pubkey` doesn't use the correct version.
+	// We don't need to find vulnerabilities for this package.
+	filteredPkgs := lo.Filter(pkgs, func(pkg ftypes.Package, index int) bool {
+		return pkg.Name != "gpg-pubkey"
+	})
+	vulns, err := driver.Detect(osName, repo, filteredPkgs)
 	if err != nil {
 		return nil, false, xerrors.Errorf("failed detection: %w", err)
 	}
@@ -74,7 +80,7 @@ func (d Detector) Detect(_, osFamily, osName string, repo *ftypes.Repository, _ 
 	return vulns, eosl, nil
 }
 
-func newDriver(osFamily string) (Driver, error) {
+func newDriver(osFamily ftypes.OSType) (Driver, error) {
 	if driver, ok := drivers[osFamily]; ok {
 		return driver, nil
 	}

@@ -6,11 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-
 	"golang.org/x/xerrors"
 
-	aos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
+	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
+	fos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/fanal/utils"
 )
@@ -35,12 +34,15 @@ func (a rockyOSAnalyzer) Analyze(_ context.Context, input analyzer.AnalysisInput
 		switch strings.ToLower(result[1]) {
 		case "rocky", "rocky linux":
 			return &analyzer.AnalysisResult{
-				OS: &types.OS{Family: aos.Rocky, Name: result[2]},
+				OS: types.OS{
+					Family: types.Rocky,
+					Name:   result[2],
+				},
 			}, nil
 		}
 	}
 
-	return nil, xerrors.Errorf("rocky: %w", aos.AnalyzeOSError)
+	return nil, xerrors.Errorf("rocky: %w", fos.AnalyzeOSError)
 }
 
 func (a rockyOSAnalyzer) Required(filePath string, _ os.FileInfo) bool {

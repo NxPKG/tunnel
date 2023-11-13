@@ -6,13 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
-
 	"github.com/stretchr/testify/require"
 
+	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	"github.com/khulnasoft/tunnel/pkg/scanner/post"
-
 	"github.com/khulnasoft/tunnel/pkg/types"
 )
 

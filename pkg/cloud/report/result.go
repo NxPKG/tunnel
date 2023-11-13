@@ -5,10 +5,8 @@ import (
 	"io"
 
 	"github.com/khulnasoft-lab/tml"
-
-	renderer "github.com/khulnasoft/tunnel/pkg/report/table"
-
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
+	renderer "github.com/khulnasoft/tunnel/pkg/report/table"
 	"github.com/khulnasoft/tunnel/pkg/types"
 )
 

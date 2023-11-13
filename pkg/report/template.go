@@ -18,7 +18,7 @@ import (
 )
 
 // CustomTemplateFuncMap is used to overwrite existing functions for testing.
-var CustomTemplateFuncMap = map[string]interface{}{}
+var CustomTemplateFuncMap = make(map[string]interface{})
 
 // TemplateWriter write result in custom format defined by user's template
 type TemplateWriter struct {
@@ -35,8 +35,7 @@ func NewTemplateWriter(output io.Writer, outputTemplate string) (*TemplateWriter
 		}
 		outputTemplate = string(buf)
 	}
-	var templateFuncMap template.FuncMap
-	templateFuncMap = sprig.GenericFuncMap()
+	var templateFuncMap template.FuncMap = sprig.GenericFuncMap()
 	templateFuncMap["escapeXML"] = func(input string) string {
 		escaped := &bytes.Buffer{}
 		if err := xml.EscapeText(escaped, []byte(input)); err != nil {
@@ -51,9 +50,7 @@ func NewTemplateWriter(output io.Writer, outputTemplate string) (*TemplateWriter
 		}
 		return input
 	}
-	templateFuncMap["escapeString"] = func(input string) string {
-		return html.EscapeString(input)
-	}
+	templateFuncMap["escapeString"] = html.EscapeString
 	templateFuncMap["sourceID"] = func(input string) dbTypes.SourceID {
 		return dbTypes.SourceID(input)
 	}
@@ -67,7 +64,10 @@ func NewTemplateWriter(output io.Writer, outputTemplate string) (*TemplateWriter
 	if err != nil {
 		return nil, xerrors.Errorf("error parsing template: %w", err)
 	}
-	return &TemplateWriter{Output: output, Template: tmpl}, nil
+	return &TemplateWriter{
+		Output:   output,
+		Template: tmpl,
+	}, nil
 }
 
 // Write writes result

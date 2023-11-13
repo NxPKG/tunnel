@@ -12,13 +12,28 @@ import (
 	"github.com/khulnasoft/tunnel/pkg/log"
 )
 
+type ErrorCallback func(pathname string, err error) error
+
 type FS struct {
 	walker
+	errCallback ErrorCallback
 }
 
-func NewFS(skipFiles, skipDirs []string, slow bool) FS {
+func NewFS(skipFiles, skipDirs []string, slow bool, errCallback ErrorCallback) FS {
+	if errCallback == nil {
+		errCallback = func(pathname string, err error) error {
+			// ignore permission errors
+			if os.IsPermission(err) {
+				return nil
+			}
+			// halt traversal on any other error
+			return xerrors.Errorf("unknown error with %s: %w", pathname, err)
+		}
+	}
+
 	return FS{
-		walker: newWalker(skipFiles, skipDirs, slow),
+		walker:      newWalker(skipFiles, skipDirs, slow),
+		errCallback: errCallback,
 	}
 }
 
@@ -29,18 +44,26 @@ func (w FS) Walk(root string, fn WalkFunc) error {
 	walkFn := func(pathname string, fi os.FileInfo) error {
 		pathname = filepath.Clean(pathname)
 
-		if fi.IsDir() {
-			if w.shouldSkipDir(pathname) {
+		// For exported rootfs (e.g. images/alpine/etc/alpine-release)
+		relPath, err := filepath.Rel(root, pathname)
+		if err != nil {
+			return xerrors.Errorf("filepath rel (%s): %w", relPath, err)
+		}
+		relPath = filepath.ToSlash(relPath)
+
+		switch {
+		case fi.IsDir():
+			if w.shouldSkipDir(relPath) {
 				return filepath.SkipDir
 			}
 			return nil
-		} else if !fi.Mode().IsRegular() {
+		case !fi.Mode().IsRegular():
 			return nil
-		} else if w.shouldSkipFile(pathname) {
+		case w.shouldSkipFile(relPath):
 			return nil
 		}
 
-		if err := fn(pathname, fi, w.fileOpener(pathname)); err != nil {
+		if err = fn(relPath, fi, w.fileOpener(pathname)); err != nil {
 			return xerrors.Errorf("failed to analyze file: %w", err)
 		}
 		return nil
@@ -48,25 +71,18 @@ func (w FS) Walk(root string, fn WalkFunc) error {
 
 	if w.slow {
 		// In series: fast, with higher CPU/memory
-		return walkSlow(root, walkFn)
+		return w.walkSlow(root, walkFn)
 	}
 
 	// In parallel: slow, with lower CPU/memory
-	return walkFast(root, walkFn)
+	return w.walkFast(root, walkFn)
 }
 
 type fastWalkFunc func(pathname string, fi os.FileInfo) error
 
-func walkFast(root string, walkFn fastWalkFunc) error {
+func (w FS) walkFast(root string, walkFn fastWalkFunc) error {
 	// error function called for every error encountered
-	errorCallbackOption := swalker.WithErrorCallback(func(pathname string, err error) error {
-		// ignore permission errors
-		if os.IsPermission(err) {
-			return nil
-		}
-		// halt traversal on any other error
-		return xerrors.Errorf("unknown error with %s: %w", pathname, err)
-	})
+	errorCallbackOption := swalker.WithErrorCallback(w.errCallback)
 
 	// Multiple goroutines stat the filesystem concurrently. The provided
 	// walkFn must be safe for concurrent use.
@@ -77,9 +93,12 @@ func walkFast(root string, walkFn fastWalkFunc) error {
 	return nil
 }
 
-func walkSlow(root string, walkFn fastWalkFunc) error {
+func (w FS) walkSlow(root string, walkFn fastWalkFunc) error {
 	log.Logger.Debugf("Walk the file tree rooted at '%s' in series", root)
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return w.errCallback(path, err)
+		}
 		info, err := d.Info()
 		if err != nil {
 			return xerrors.Errorf("file info error: %w", err)

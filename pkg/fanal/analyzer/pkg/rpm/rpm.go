@@ -14,6 +14,7 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/xerrors"
 
+	"github.com/khulnasoft/tunnel/pkg/digest"
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
 	"github.com/khulnasoft/tunnel/pkg/fanal/log"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
@@ -57,6 +58,7 @@ var osVendors = []string{
 	"SUSE",                  // SUSE Linux Enterprise
 	"openSUSE",              // openSUSE
 	"Microsoft Corporation", // CBL-Mariner
+	"Rocky",                 // Rocky Linux
 }
 
 type rpmPkgAnalyzer struct{}
@@ -78,7 +80,7 @@ func (a rpmPkgAnalyzer) Analyze(_ context.Context, input analyzer.AnalysisInput)
 	}, nil
 }
 
-func (a rpmPkgAnalyzer) parsePkgInfo(rc io.Reader) ([]types.Package, []string, error) {
+func (a rpmPkgAnalyzer) parsePkgInfo(rc io.Reader) (types.Packages, []string, error) {
 	filePath, err := writeToTempFile(rc)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("temp file error: %w", err)
@@ -102,7 +104,7 @@ func (a rpmPkgAnalyzer) parsePkgInfo(rc io.Reader) ([]types.Package, []string, e
 
 	var pkgs []types.Package
 	var installedFiles []string
-	provides := map[string]string{}
+	provides := make(map[string]string)
 	for _, pkg := range pkgList {
 		arch := pkg.Arch
 		if arch == "" {
@@ -129,6 +131,13 @@ func (a rpmPkgAnalyzer) parsePkgInfo(rc io.Reader) ([]types.Package, []string, e
 			}
 		}
 
+		// RPM DB uses MD5 digest
+		// https://rpm-software-management.github.io/rpm/manual/tags.html#signatures-and-digests
+		var d digest.Digest
+		if pkg.SigMD5 != "" {
+			d = digest.NewDigestFromString(digest.MD5, pkg.SigMD5)
+		}
+
 		p := types.Package{
 			ID:              fmt.Sprintf("%s@%s-%s.%s", pkg.Name, pkg.Version, pkg.Release, pkg.Arch),
 			Name:            pkg.Name,
@@ -144,6 +153,7 @@ func (a rpmPkgAnalyzer) parsePkgInfo(rc io.Reader) ([]types.Package, []string, e
 			Licenses:        []string{pkg.License},
 			DependsOn:       pkg.Requires, // Will be replaced with package IDs
 			Maintainer:      pkg.Vendor,
+			Digest:          d,
 		}
 		pkgs = append(pkgs, p)
 		installedFiles = append(installedFiles, files...)

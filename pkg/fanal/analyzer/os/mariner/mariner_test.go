@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-	aos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 )
 
@@ -24,8 +23,8 @@ func Test_marinerOSAnalyzer_Analyze(t *testing.T) {
 			name:      "happy path with CBL Mariner 1.0",
 			inputFile: "testdata/1.0/mariner-release",
 			want: &analyzer.AnalysisResult{
-				OS: &types.OS{
-					Family: aos.CBLMariner,
+				OS: types.OS{
+					Family: types.CBLMariner,
 					Name:   "1.0.20220122",
 				},
 			},

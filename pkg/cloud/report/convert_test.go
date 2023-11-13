@@ -4,16 +4,13 @@ import (
 	"sort"
 	"testing"
 
-	fanaltypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
-
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-
-	defsecTypes "github.com/aquasecurity/defsec/pkg/types"
-	"github.com/khulnasoft/tunnel/pkg/types"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/aquasecurity/defsec/pkg/scan"
+	defsecTypes "github.com/aquasecurity/defsec/pkg/types"
+	fanaltypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/types"
 )
 
 func Test_ResultConversion(t *testing.T) {
@@ -117,6 +114,7 @@ func Test_ResultConversion(t *testing.T) {
 								{
 									Type:        "AWS",
 									ID:          "AVD-AWS-9999",
+									AVDID:       "AVD-AWS-9999",
 									Title:       "Do not use bad stuff",
 									Description: "Bad stuff is... bad",
 									Message:     "something failed",
@@ -146,6 +144,7 @@ func Test_ResultConversion(t *testing.T) {
 								{
 									Type:        "AWS",
 									ID:          "AVD-AWS-9999",
+									AVDID:       "AVD-AWS-9999",
 									Title:       "Do not use bad stuff",
 									Description: "Bad stuff is... bad",
 									Message:     "something else failed",
@@ -165,6 +164,7 @@ func Test_ResultConversion(t *testing.T) {
 								{
 									Type:        "AWS",
 									ID:          "AVD-AWS-9999",
+									AVDID:       "AVD-AWS-9999",
 									Title:       "Do not use bad stuff",
 									Description: "Bad stuff is... bad",
 									Message:     "something else failed again",
@@ -195,6 +195,7 @@ func Test_ResultConversion(t *testing.T) {
 								{
 									Type:        "AWS",
 									ID:          "AVD-AWS-9999",
+									AVDID:       "AVD-AWS-9999",
 									Title:       "Do not use bad stuff",
 									Description: "Bad stuff is... bad",
 									Message:     "instance is bad",
@@ -221,7 +222,7 @@ func Test_ResultConversion(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			converted := convertResults(test.results, test.provider, test.scoped)
+			converted := ConvertResults(test.results, test.provider, test.scoped)
 			assertConvertedResultsMatch(t, test.expected, converted)
 		})
 	}

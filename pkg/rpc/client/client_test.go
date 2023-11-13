@@ -36,7 +36,7 @@ func TestScanner_Scan(t *testing.T) {
 		args          args
 		expectation   *rpc.ScanResponse
 		wantResults   types.Results
-		wantOS        *ftypes.OS
+		wantOS        ftypes.OS
 		wantEosl      bool
 		wantErr       string
 	}{
@@ -150,7 +150,7 @@ func TestScanner_Scan(t *testing.T) {
 					},
 				},
 			},
-			wantOS: &ftypes.OS{
+			wantOS: ftypes.OS{
 				Family: "alpine",
 				Name:   "3.11",
 				Eosl:   true,
@@ -188,7 +188,7 @@ func TestScanner_Scan(t *testing.T) {
 				b, err := protojson.Marshal(tt.expectation)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
-					fmt.Fprintf(w, "json marshalling error: %v", err)
+					fmt.Fprintf(w, "json marshaling error: %v", err)
 					return
 				}
 				w.Header().Set("Content-Type", "application/json")

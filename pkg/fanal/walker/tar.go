@@ -4,16 +4,21 @@ import (
 	"archive/tar"
 	"io"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"golang.org/x/xerrors"
+
+	"github.com/khulnasoft/tunnel/pkg/fanal/utils"
 )
 
 const (
 	opq string = ".wh..wh..opq"
 	wh  string = ".wh."
 )
+
+var parentDir = ".." + utils.PathSeparator
 
 type LayerTar struct {
 	walker
@@ -33,7 +38,6 @@ func NewLayerTar(skipFiles, skipDirs []string, slow bool) LayerTar {
 }
 
 func (w LayerTar) Walk(layer io.Reader, analyzeFn WalkFunc) ([]string, []string, error) {
-
 	var opqDirs, whFiles, skipDirs []string
 	tr := tar.NewReader(layer)
 	for {
@@ -44,9 +48,10 @@ func (w LayerTar) Walk(layer io.Reader, analyzeFn WalkFunc) ([]string, []string,
 			return nil, nil, xerrors.Errorf("failed to extract the archive: %w", err)
 		}
 
-		filePath := hdr.Name
-		filePath = strings.TrimLeft(filepath.Clean(filePath), "/")
-		fileDir, fileName := filepath.Split(filePath)
+		// filepath.Clean cannot be used since tar file paths should be OS-agnostic.
+		filePath := path.Clean(hdr.Name)
+		filePath = strings.TrimLeft(filePath, "/")
+		fileDir, fileName := path.Split(filePath)
 
 		// e.g. etc/.wh..wh..opq
 		if opq == fileName {
@@ -56,7 +61,7 @@ func (w LayerTar) Walk(layer io.Reader, analyzeFn WalkFunc) ([]string, []string,
 		// etc/.wh.hostname
 		if strings.HasPrefix(fileName, wh) {
 			name := strings.TrimPrefix(fileName, wh)
-			fpath := filepath.Join(fileDir, name)
+			fpath := path.Join(fileDir, name)
 			whFiles = append(whFiles, fpath)
 			continue
 		}
@@ -80,7 +85,7 @@ func (w LayerTar) Walk(layer io.Reader, analyzeFn WalkFunc) ([]string, []string,
 			continue
 		}
 
-		// A symbolic/hard link or regular file will reach here.
+		// A regular file will reach here.
 		if err = w.processFile(filePath, tr, hdr.FileInfo(), analyzeFn); err != nil {
 			return nil, nil, xerrors.Errorf("failed to process the file: %w", err)
 		}
@@ -108,7 +113,7 @@ func underSkippedDir(filePath string, skipDirs []string) bool {
 		if err != nil {
 			return false
 		}
-		if !strings.HasPrefix(rel, "../") {
+		if !strings.HasPrefix(rel, parentDir) {
 			return true
 		}
 	}

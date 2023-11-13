@@ -3,11 +3,10 @@ package licensing_test
 import (
 	"testing"
 
-	"github.com/khulnasoft/tunnel/pkg/licensing"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/licensing"
 )
 
 func TestScanner_Scan(t *testing.T) {

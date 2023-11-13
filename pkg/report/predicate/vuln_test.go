@@ -10,7 +10,6 @@ import (
 
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	"github.com/khulnasoft-lab/vul-db/pkg/vulnsrc/vulnerability"
-
 	"github.com/khulnasoft/tunnel/pkg/clock"
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/report/predicate"

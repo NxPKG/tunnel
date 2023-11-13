@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/xerrors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	"github.com/khulnasoft-lab/vul-db/pkg/utils"
@@ -53,10 +53,11 @@ func TestScanServer_Scan(t *testing.T) {
 			},
 			scanExpectation: scanner.DriverScanExpectation{
 				Args: scanner.DriverScanArgs{
-					CtxAnything: true,
-					Target:      "alpine:3.11",
-					ImageID:     "sha256:e7d92cdc71feacf90708cb59182d0df1b911f8ae022d29e8e95d75ca6a99776a",
-					LayerIDs:    []string{"sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10"},
+					CtxAnything:     true,
+					Target:          "alpine:3.11",
+					ImageID:         "sha256:e7d92cdc71feacf90708cb59182d0df1b911f8ae022d29e8e95d75ca6a99776a",
+					LayerIDs:        []string{"sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10"},
+					OptionsAnything: true,
 				},
 				Returns: scanner.DriverScanReturns{
 					Results: types.Results{
@@ -90,7 +91,7 @@ func TestScanServer_Scan(t *testing.T) {
 							Type: "alpine",
 						},
 					},
-					OsFound: &ftypes.OS{
+					OsFound: ftypes.OS{
 						Family: "alpine",
 						Name:   "3.11",
 						Eosl:   true,
@@ -152,10 +153,11 @@ func TestScanServer_Scan(t *testing.T) {
 			},
 			scanExpectation: scanner.DriverScanExpectation{
 				Args: scanner.DriverScanArgs{
-					CtxAnything: true,
-					Target:      "alpine:3.11",
-					ImageID:     "sha256:e7d92cdc71feacf90708cb59182d0df1b911f8ae022d29e8e95d75ca6a99776a",
-					LayerIDs:    []string{"sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10"},
+					CtxAnything:     true,
+					Target:          "alpine:3.11",
+					ImageID:         "sha256:e7d92cdc71feacf90708cb59182d0df1b911f8ae022d29e8e95d75ca6a99776a",
+					LayerIDs:        []string{"sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10"},
+					OptionsAnything: true,
 				},
 				Returns: scanner.DriverScanReturns{
 					Err: errors.New("error"),
@@ -204,7 +206,7 @@ func TestCacheServer_PutArtifact(t *testing.T) {
 						Architecture:  "amd64",
 						Created: func() *timestamp.Timestamp {
 							d := time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC)
-							t, _ := ptypes.TimestampProto(d)
+							t := timestamppb.New(d)
 							return t
 						}(),
 						DockerVersion: "18.09",
@@ -235,7 +237,7 @@ func TestCacheServer_PutArtifact(t *testing.T) {
 						SchemaVersion: 1,
 						Created: func() *timestamp.Timestamp {
 							d := time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC)
-							t, _ := ptypes.TimestampProto(d)
+							t := timestamppb.New(d)
 							return t
 						}(),
 					},
@@ -385,14 +387,14 @@ func TestCacheServer_PutBlob(t *testing.T) {
 						SchemaVersion: 1,
 						Digest:        "sha256:154ad0735c360b212b167f424d33a62305770a1fcfb6363882f5c436cfbd9812",
 						DiffID:        "sha256:b2a1a2d80bf0c747a4f6b0ca6af5eef23f043fcdb1ed4f3a3e750aef2dc68079",
-						OS: &ftypes.OS{
+						OS: ftypes.OS{
 							Family: "alpine",
 							Name:   "3.11",
 						},
 						PackageInfos: []ftypes.PackageInfo{
 							{
 								FilePath: "lib/apk/db/installed",
-								Packages: []ftypes.Package{
+								Packages: ftypes.Packages{
 									{
 										Name:       "binary",
 										Version:    "1.2.3",
@@ -442,7 +444,7 @@ func TestCacheServer_PutBlob(t *testing.T) {
 							{
 								Type:     "composer",
 								FilePath: "php-app/composer.lock",
-								Libraries: []ftypes.Package{
+								Libraries: ftypes.Packages{
 									{
 										Name:    "guzzlehttp/guzzle",
 										Version: "6.2.0",
@@ -544,10 +546,18 @@ func TestCacheServer_MissingBlobs(t *testing.T) {
 			},
 			getArtifactCacheMissingBlobsExpectations: []cache.ArtifactCacheMissingBlobsExpectation{
 				{
-					Args: cache.ArtifactCacheMissingBlobsArgs{ArtifactID: "sha256:e7d92cdc71feacf90708cb59182d0df1b911f8ae022d29e8e95d75ca6a99776a",
-						BlobIDs: []string{"sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02", "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5"}},
+					Args: cache.ArtifactCacheMissingBlobsArgs{
+						ArtifactID: "sha256:e7d92cdc71feacf90708cb59182d0df1b911f8ae022d29e8e95d75ca6a99776a",
+						BlobIDs: []string{
+							"sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
+							"sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
+						},
+					},
 					Returns: cache.ArtifactCacheMissingBlobsReturns{
-						MissingArtifact: false, MissingBlobIDs: []string{"sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5"}, Err: nil},
+						MissingArtifact: false,
+						MissingBlobIDs:  []string{"sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5"},
+						Err:             nil,
+					},
 				},
 			},
 			want: &rpcCache.MissingBlobsResponse{

@@ -3,15 +3,14 @@ package walker_test
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-
 	"github.com/stretchr/testify/assert"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
 	"github.com/khulnasoft/tunnel/pkg/fanal/walker"
 )
 
@@ -31,7 +30,7 @@ func TestLayerTar_Walk(t *testing.T) {
 	}{
 		{
 			name:      "happy path",
-			inputFile: "testdata/test.tar",
+			inputFile: filepath.Join("testdata", "test.tar"),
 			analyzeFn: func(filePath string, info os.FileInfo, opener analyzer.Opener) error {
 				return nil
 			},
@@ -40,7 +39,7 @@ func TestLayerTar_Walk(t *testing.T) {
 		},
 		{
 			name:      "skip file",
-			inputFile: "testdata/test.tar",
+			inputFile: filepath.Join("testdata", "test.tar"),
 			fields: fields{
 				skipFiles: []string{"/app/myweb/index.html"},
 			},
@@ -55,9 +54,9 @@ func TestLayerTar_Walk(t *testing.T) {
 		},
 		{
 			name:      "skip dir",
-			inputFile: "testdata/test.tar",
+			inputFile: filepath.Join("testdata", "test.tar"),
 			fields: fields{
-				skipDirs: []string{"/app/"},
+				skipDirs: []string{"/app"},
 			},
 			analyzeFn: func(filePath string, info os.FileInfo, opener analyzer.Opener) error {
 				if strings.HasPrefix(filePath, "app") {

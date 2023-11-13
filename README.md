@@ -1,3 +1,6 @@
+<div align="center">
+<img src="docs/imgs/logo.png" width="200">
+
 [![GitHub Release][release-img]][release]
 [![Test][test-img]][test]
 [![Go Report Card][go-report-img]][go-report]
@@ -28,29 +31,37 @@ Scanners (what Tunnel can find there):
 - Sensitive information and secrets
 - Software licenses
 
+Tunnel supports most popular programming languages, operating systems, and platforms. For a complete list, see the [Scanning Coverage] page.
+
+To learn more, go to the [Tunnel homepage][homepage] for feature highlights, or to the [Documentation site][docs] for detailed information.
+
 ## Quick Start
 
 ### Get Tunnel
 
-Tunnel is available in most common distribution methods. The full list of installation options is available in the [Installation] page, here are a few popular options:
+Tunnel is available in most common distribution channels. The full list of installation options is available in the [Installation] page. Here are a few popular examples:
 
-- `apt-get install tunnel`
-- `yum install tunnel`
-- `brew install khulnasoft/tunnel/tunnel`
+- `brew install tunnel`
 - `docker run khulnasoft/tunnel`
 - Download binary from <https://github.com/khulnasoft/tunnel/releases/latest/>
+- See [Installation] for more
 
-Tunnel is integrated with many popular platforms and applications. The full list of integrations is available in the [Ecosystem] page. Here are a few popular options:
+Tunnel is integrated with many popular platforms and applications. The complete list of integrations is available in the [Ecosystem] page. Here are a few popular examples:
 
 - [GitHub Actions](https://github.com/khulnasoft/tunnel-action)
-- [CircleCI](https://circleci.com/developer/orbs/orb/fifteen5/tunnel-orb)
 - [Kubernetes operator](https://github.com/khulnasoft/tunnel-operator)
 - [VS Code plugin](https://github.com/khulnasoft/tunnel-vscode-extension)
+- See [Ecosystem] for more
+
+### Canary builds
+There are canary builds ([Docker Hub](https://hub.docker.com/r/khulnasoft/tunnel/tags?page=1&name=canary), [GitHub](https://github.com/khulnasoft/tunnel/pkgs/container/tunnel/75776514?tag=canary), [ECR](https://gallery.ecr.aws/khulnasoft/tunnel#canary) images and [binaries](https://github.com/khulnasoft/tunnel/actions/workflows/canary.yaml)) as generated every push to main branch.
+
+Please be aware: canary builds might have critical bugs, it's not recommended for use in production.
 
 ### General usage
 
 ```bash
-tunnel <target> [--security-checks <scanner1,scanner2>] <subject>
+tunnel <target> [--scanners <scanner1,scanner2>] <subject>
 ```
 
 Examples:
@@ -67,7 +78,7 @@ https://user-images.githubusercontent.com/1161307/171013513-95f18734-233d-45d3-a
 </details>
 
 ```bash
-tunnel fs --security-checks vuln,secret,config myproject/
+tunnel fs --scanners vuln,secret,config myproject/
 ```
 
 <details>
@@ -88,47 +99,27 @@ tunnel k8s --report summary cluster
 
 </details>
 
-## Highlights
-
-- Comprehensive vulnerability detection
-    - OS packages (Alpine Linux, Red Hat Universal Base Image, Red Hat Enterprise Linux, CentOS, AlmaLinux, Rocky Linux, CBL-Mariner, Oracle Linux, Debian, Ubuntu, Amazon Linux, openSUSE Leap, SUSE Enterprise Linux, Photon OS and Distroless)
-    - **Language-specific packages** (Bundler, Composer, Pipenv, Poetry, npm, yarn, Cargo, NuGet, Maven, and Go)
-    - High accuracy, especially [Alpine Linux][alpine] and RHEL/CentOS
-- Supply chain security (SBOM support)
-    - Support CycloneDX
-    - Support SPDX
-    - Generating and Scanning SBOM
-    - Leveraging in-toto attestations
-    - Integrated with [Sigstore]
-- Misconfiguration detection (IaC scanning) 
-    - Wide variety of security checks are provided **out of the box**
-    - Kubernetes, Docker, Terraform, and more
-    - User-defined policies using [OPA Rego][rego]
-- Secret detection
-    - A wide variety of built-in rules are provided **out of the box**
-    - User-defined patterns
-    - Efficient scanning of container images
-- Simple
-    - Available in apt, yum, brew, dockerhub
-    - **No pre-requisites** such as a database, system libraries, or eny environmental requirements. The binary runs anywhere.
-    - The first scan will finish within 10 seconds (depending on your network). Consequent scans will finish instantaneously.
-- Fits your workflow
-    - **Great for CI** such as GitHub Actions, Jenkins, GitLab CI, etc.
-    - Available as extension for IDEs such as vscode, jetbrains, vim
-    - Available as extension for Docker Desktop, Rancher Desktop
-    - See [Ecosystem] section in the documentation.
-
 ## FAQ
 
 ### How to pronounce the name "Tunnel"?
 
 `tri` is pronounced like **tri**gger, `vy` is pronounced like en**vy**.
 
----
+## Want more? Check out Khulnasoft
+
+If you liked Tunnel, you will love Khulnasoft which builds on top of Tunnel to provide even more enhanced capabilities for a complete security management offering.  
+You can find a high level comparison table specific to Tunnel users [here](https://github.com/khulnasoft/resources/blob/main/tunnel-khulnasoft.md).  
+In addition check out the <https://khulnasoft.com> website for more information about our products and services.
+If you'd like to contact Khulnasoft or request a demo, please use this form: <https://www.khulnasoft.com/demo>
+
+## Community
 
 Tunnel is an [Khulnasoft Security][khulnasoft] open source project.  
 Learn about our open source work and portfolio [here][oss].  
 Contact us about any matter by opening a GitHub Discussion [here][discussions]
+Join our [Slack community][slack] to stay up to date with community efforts.
+
+Please ensure to abide by our [Code of Conduct][code-of-conduct] during all interactions.
 
 [test]: https://github.com/khulnasoft/tunnel/actions/workflows/test.yaml
 [test-img]: https://github.com/khulnasoft/tunnel/actions/workflows/test.yaml/badge.svg
@@ -140,11 +131,15 @@ Contact us about any matter by opening a GitHub Discussion [here][discussions]
 [docker-pulls]: https://img.shields.io/docker/pulls/khulnasoft/tunnel?logo=docker&label=docker%20pulls%20%2F%20tunnel
 [license]: https://github.com/khulnasoft/tunnel/blob/main/LICENSE
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[homepage]: https://tunnel.dev
 [docs]: https://khulnasoft.github.io/tunnel
 [pronunciation]: #how-to-pronounce-the-name-tunnel
+[slack]: https://slack.khulnasoft.com
+[code-of-conduct]: https://github.com/khulnasoft/community/blob/main/CODE_OF_CONDUCT.md
 
 [Installation]:https://khulnasoft.github.io/tunnel/latest/getting-started/installation/
-[Ecosystem]: https://khulnasoft.github.io/tunnel/latestecosystem/tools
+[Ecosystem]: https://khulnasoft.github.io/tunnel/latest/ecosystem/
+[Scanning Coverage]: https://khulnasoft.github.io/tunnel/latest/docs/coverage/
 
 [alpine]: https://ariadne.space/2021/06/08/the-vulnerability-remediation-lifecycle-of-alpine-containers/
 [rego]: https://www.openpolicyagent.org/docs/latest/#rego

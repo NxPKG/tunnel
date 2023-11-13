@@ -22,12 +22,12 @@ func TestApplier_ApplyLayers(t *testing.T) {
 		layerIDs []string
 	}
 	tests := []struct {
-		name                 string
-		args                 args
-		getLayerExpectations []cache.CacheGetBlobExpectation
-		getImageExpectations []cache.CacheGetArtifactExpectation
-		want                 types.ArtifactDetail
-		wantErr              string
+		name                    string
+		args                    args
+		getLayerExpectations    []cache.LocalArtifactCacheGetBlobExpectation
+		getArtifactExpectations []cache.LocalArtifactCacheGetArtifactExpectation
+		want                    types.ArtifactDetail
+		wantErr                 string
 	}{
 		{
 			name: "happy path",
@@ -39,24 +39,24 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					"sha256:24df0d4e20c0f42d3703bf1f1db2bdd77346c7956f74f423603d651e8e5ae8a7",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 							DiffID:        "sha256:a187dde48cd289ac374ad8539930628314bc581a481cdb41409c9289419ddb72",
-							OS: &types.OS{
+							OS: types.OS{
 								Family: "debian",
 								Name:   "9.9",
 							},
 							PackageInfos: []types.PackageInfo{
 								{
 									FilePath: "var/lib/dpkg/status.d/tzdata",
-									Packages: []types.Package{
+									Packages: types.Packages{
 										{
 											Name:       "tzdata",
 											Version:    "2019a-0+deb9u1",
@@ -70,10 +70,10 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
@@ -81,7 +81,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 							PackageInfos: []types.PackageInfo{
 								{
 									FilePath: "var/lib/dpkg/status.d/libc6",
-									Packages: []types.Package{
+									Packages: types.Packages{
 										{
 											Name:       "libc6",
 											Version:    "2.24-11+deb9u4",
@@ -98,10 +98,10 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:24df0d4e20c0f42d3703bf1f1db2bdd77346c7956f74f423603d651e8e5ae8a7",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:beee9f30bc1f711043e78d4a2be0668955d4b761d587d6f60c2c8dc081efb203",
@@ -110,7 +110,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 								{
 									Type:     "composer",
 									FilePath: "php-app/composer.lock",
-									Libraries: []types.Package{
+									Libraries: types.Packages{
 										{
 											Name:    "guzzlehttp/guzzle",
 											Version: "6.2.0",
@@ -126,12 +126,12 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 			},
-			getImageExpectations: []cache.CacheGetArtifactExpectation{
+			getArtifactExpectations: []cache.LocalArtifactCacheGetArtifactExpectation{
 				{
-					Args: cache.CacheGetArtifactArgs{
+					Args: cache.LocalArtifactCacheGetArtifactArgs{
 						ArtifactID: "sha256:4791503518dff090d6a82f7a5c1fd71c41146920e2562fb64308e17ab6834b7e",
 					},
-					Returns: cache.CacheGetArtifactReturns{
+					Returns: cache.LocalArtifactCacheGetArtifactReturns{
 						ArtifactInfo: types.ArtifactInfo{
 							SchemaVersion: 1,
 						},
@@ -139,20 +139,26 @@ func TestApplier_ApplyLayers(t *testing.T) {
 				},
 			},
 			want: types.ArtifactDetail{
-				OS: &types.OS{
+				OS: types.OS{
 					Family: "debian",
 					Name:   "9.9",
 				},
-				Packages: []types.Package{
+				Packages: types.Packages{
 					{
-						Name: "libc6", Version: "2.24-11+deb9u4", SrcName: "glibc", SrcVersion: "2.24-11+deb9u4",
+						Name:       "libc6",
+						Version:    "2.24-11+deb9u4",
+						SrcName:    "glibc",
+						SrcVersion: "2.24-11+deb9u4",
 						Layer: types.Layer{
 							Digest: "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
 							DiffID: "sha256:aad63a9339440e7c3e1fff2b988991b9bfb81280042fa7f39a5e327023056819",
 						},
 					},
 					{
-						Name: "tzdata", Version: "2019a-0+deb9u1", SrcName: "tzdata", SrcVersion: "2019a-0+deb9u1",
+						Name:       "tzdata",
+						Version:    "2019a-0+deb9u1",
+						SrcName:    "tzdata",
+						SrcVersion: "2019a-0+deb9u1",
 						Layer: types.Layer{
 							Digest: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 							DiffID: "sha256:a187dde48cd289ac374ad8539930628314bc581a481cdb41409c9289419ddb72",
@@ -163,7 +169,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					{
 						Type:     "composer",
 						FilePath: "php-app/composer.lock",
-						Libraries: []types.Package{
+						Libraries: types.Packages{
 							{
 								Name:    "guzzlehttp/guzzle",
 								Version: "6.2.0",
@@ -193,29 +199,44 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					"sha256:531743b7098cb2aaf615641007a129173f63ed86ca32fe7b5a246a1c47286028",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:531743b7098cb2aaf615641007a129173f63ed86ca32fe7b5a246a1c47286028",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:a187dde48cd289ac374ad8539930628314bc581a481cdb41409c9289419ddb72",
 							DiffID:        "sha256:531743b7098cb2aaf615641007a129173f63ed86ca32fe7b5a246a1c47286028",
-							OS: &types.OS{
+							OS: types.OS{
 								Family: "alpine",
 								Name:   "3.10.4",
 							},
 							PackageInfos: []types.PackageInfo{
 								{
 									FilePath: "lib/apk/db/installed",
-									Packages: []types.Package{
-										{Name: "musl", Version: "1.1.22-r3"},
-										{Name: "busybox", Version: "1.30.1-r3"},
-										{Name: "openssl", Version: "1.1.1d-r2"},
-										{Name: "libcrypto1.1", Version: "1.1.1d-r2"},
-										{Name: "libssl1.1", Version: "1.1.1d-r2"},
+									Packages: types.Packages{
+										{
+											Name:    "musl",
+											Version: "1.1.22-r3",
+										},
+										{
+											Name:    "busybox",
+											Version: "1.30.1-r3",
+										},
+										{
+											Name:    "openssl",
+											Version: "1.1.1d-r2",
+										},
+										{
+											Name:    "libcrypto1.1",
+											Version: "1.1.1d-r2",
+										},
+										{
+											Name:    "libssl1.1",
+											Version: "1.1.1d-r2",
+										},
 									},
 								},
 							},
@@ -223,34 +244,58 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 			},
-			getImageExpectations: []cache.CacheGetArtifactExpectation{
+			getArtifactExpectations: []cache.LocalArtifactCacheGetArtifactExpectation{
 				{
-					Args: cache.CacheGetArtifactArgs{
+					Args: cache.LocalArtifactCacheGetArtifactArgs{
 						ArtifactID: "sha256:3bb70bd5fb37e05b8ecaaace5d6a6b5ec7834037c07ecb5907355c23ab70352d",
 					},
-					Returns: cache.CacheGetArtifactReturns{
+					Returns: cache.LocalArtifactCacheGetArtifactReturns{
 						ArtifactInfo: types.ArtifactInfo{
 							SchemaVersion: 1,
-							HistoryPackages: []types.Package{
-								{Name: "musl", Version: "1.1.23"},
-								{Name: "busybox", Version: "1.31"},
-								{Name: "ncurses-libs", Version: "6.1_p20190518-r0"},
-								{Name: "ncurses-terminfo-base", Version: "6.1_p20190518-r0"},
-								{Name: "ncurses", Version: "6.1_p20190518-r0"},
-								{Name: "ncurses-terminfo", Version: "6.1_p20190518-r0"},
-								{Name: "bash", Version: "5.0.0-r0"},
-								{Name: "readline", Version: "8.0.0-r0"},
+							HistoryPackages: types.Packages{
+								{
+									Name:    "musl",
+									Version: "1.1.23",
+								},
+								{
+									Name:    "busybox",
+									Version: "1.31",
+								},
+								{
+									Name:    "ncurses-libs",
+									Version: "6.1_p20190518-r0",
+								},
+								{
+									Name:    "ncurses-terminfo-base",
+									Version: "6.1_p20190518-r0",
+								},
+								{
+									Name:    "ncurses",
+									Version: "6.1_p20190518-r0",
+								},
+								{
+									Name:    "ncurses-terminfo",
+									Version: "6.1_p20190518-r0",
+								},
+								{
+									Name:    "bash",
+									Version: "5.0.0-r0",
+								},
+								{
+									Name:    "readline",
+									Version: "8.0.0-r0",
+								},
 							},
 						},
 					},
 				},
 			},
 			want: types.ArtifactDetail{
-				OS: &types.OS{
+				OS: types.OS{
 					Family: "alpine",
 					Name:   "3.10.4",
 				},
-				Packages: []types.Package{
+				Packages: types.Packages{
 					{
 						Name:    "busybox",
 						Version: "1.30.1-r3",
@@ -292,15 +337,41 @@ func TestApplier_ApplyLayers(t *testing.T) {
 						},
 					},
 				},
-				HistoryPackages: []types.Package{
-					{Name: "musl", Version: "1.1.23"},
-					{Name: "busybox", Version: "1.31"},
-					{Name: "ncurses-libs", Version: "6.1_p20190518-r0"},
-					{Name: "ncurses-terminfo-base", Version: "6.1_p20190518-r0"},
-					{Name: "ncurses", Version: "6.1_p20190518-r0"},
-					{Name: "ncurses-terminfo", Version: "6.1_p20190518-r0"},
-					{Name: "bash", Version: "5.0.0-r0"},
-					{Name: "readline", Version: "8.0.0-r0"},
+				ImageConfig: types.ImageConfigDetail{
+					Packages: types.Packages{
+						{
+							Name:    "musl",
+							Version: "1.1.23",
+						},
+						{
+							Name:    "busybox",
+							Version: "1.31",
+						},
+						{
+							Name:    "ncurses-libs",
+							Version: "6.1_p20190518-r0",
+						},
+						{
+							Name:    "ncurses-terminfo-base",
+							Version: "6.1_p20190518-r0",
+						},
+						{
+							Name:    "ncurses",
+							Version: "6.1_p20190518-r0",
+						},
+						{
+							Name:    "ncurses-terminfo",
+							Version: "6.1_p20190518-r0",
+						},
+						{
+							Name:    "bash",
+							Version: "5.0.0-r0",
+						},
+						{
+							Name:    "readline",
+							Version: "8.0.0-r0",
+						},
+					},
 				},
 			},
 		},
@@ -311,12 +382,12 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					"sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 					},
-					Returns: cache.CacheGetBlobReturns{BlobInfo: types.BlobInfo{}},
+					Returns: cache.LocalArtifactCacheGetBlobReturns{BlobInfo: types.BlobInfo{}},
 				},
 			},
 			wantErr: "layer cache missing",
@@ -328,12 +399,12 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					"sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 					},
-					Returns: cache.CacheGetBlobReturns{BlobInfo: types.BlobInfo{}},
+					Returns: cache.LocalArtifactCacheGetBlobReturns{BlobInfo: types.BlobInfo{}},
 				},
 			},
 			wantErr: "layer cache missing",
@@ -348,12 +419,24 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					"sha256:24df0d4e20c0f42d3703bf1f1db2bdd77346c7956f74f423603d651e8e5ae8a7",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getArtifactExpectations: []cache.LocalArtifactCacheGetArtifactExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetArtifactArgs{
+						ArtifactID: "sha256:4791503518dff090d6a82f7a5c1fd71c41146920e2562fb64308e17ab6834b7e",
+					},
+					Returns: cache.LocalArtifactCacheGetArtifactReturns{
+						ArtifactInfo: types.ArtifactInfo{
+							SchemaVersion: 1,
+						},
+					},
+				},
+			},
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
+				{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
@@ -361,7 +444,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 							PackageInfos: []types.PackageInfo{
 								{
 									FilePath: "var/lib/dpkg/status.d/tzdata",
-									Packages: []types.Package{
+									Packages: types.Packages{
 										{
 											Name:       "tzdata",
 											Version:    "2019a-0+deb9u1",
@@ -375,10 +458,10 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
@@ -386,7 +469,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 							PackageInfos: []types.PackageInfo{
 								{
 									FilePath: "var/lib/dpkg/status.d/libc6",
-									Packages: []types.Package{
+									Packages: types.Packages{
 										{
 											Name:       "libc6",
 											Version:    "2.24-11+deb9u4",
@@ -403,10 +486,10 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:24df0d4e20c0f42d3703bf1f1db2bdd77346c7956f74f423603d651e8e5ae8a7",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:beee9f30bc1f711043e78d4a2be0668955d4b761d587d6f60c2c8dc081efb203",
@@ -415,7 +498,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 								{
 									Type:     "composer",
 									FilePath: "php-app/composer.lock",
-									Libraries: []types.Package{
+									Libraries: types.Packages{
 										{
 											Name:    "guzzlehttp/guzzle",
 											Version: "6.2.0",
@@ -432,16 +515,22 @@ func TestApplier_ApplyLayers(t *testing.T) {
 				},
 			},
 			want: types.ArtifactDetail{
-				Packages: []types.Package{
+				Packages: types.Packages{
 					{
-						Name: "libc6", Version: "2.24-11+deb9u4", SrcName: "glibc", SrcVersion: "2.24-11+deb9u4",
+						Name:       "libc6",
+						Version:    "2.24-11+deb9u4",
+						SrcName:    "glibc",
+						SrcVersion: "2.24-11+deb9u4",
 						Layer: types.Layer{
 							Digest: "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
 							DiffID: "sha256:aad63a9339440e7c3e1fff2b988991b9bfb81280042fa7f39a5e327023056819",
 						},
 					},
 					{
-						Name: "tzdata", Version: "2019a-0+deb9u1", SrcName: "tzdata", SrcVersion: "2019a-0+deb9u1",
+						Name:       "tzdata",
+						Version:    "2019a-0+deb9u1",
+						SrcName:    "tzdata",
+						SrcVersion: "2019a-0+deb9u1",
 						Layer: types.Layer{
 							Digest: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 							DiffID: "sha256:a187dde48cd289ac374ad8539930628314bc581a481cdb41409c9289419ddb72",
@@ -452,7 +541,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					{
 						Type:     "composer",
 						FilePath: "php-app/composer.lock",
-						Libraries: []types.Package{
+						Libraries: types.Packages{
 							{
 								Name:    "guzzlehttp/guzzle",
 								Version: "6.2.0",
@@ -478,19 +567,32 @@ func TestApplier_ApplyLayers(t *testing.T) {
 		{
 			name: "sad path no package detected",
 			args: args{
+				imageID: "sha256:4791503518dff090d6a82f7a5c1fd71c41146920e2562fb64308e17ab6834b7e",
 				layerIDs: []string{
 					"sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getArtifactExpectations: []cache.LocalArtifactCacheGetArtifactExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetArtifactArgs{
+						ArtifactID: "sha256:4791503518dff090d6a82f7a5c1fd71c41146920e2562fb64308e17ab6834b7e",
+					},
+					Returns: cache.LocalArtifactCacheGetArtifactReturns{
+						ArtifactInfo: types.ArtifactInfo{
+							SchemaVersion: 1,
+						},
+					},
+				},
+			},
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
+				{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
-							OS: &types.OS{
+							OS: types.OS{
 								Family: "debian",
 								Name:   "9.9",
 							},
@@ -499,7 +601,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 				},
 			},
 			want: types.ArtifactDetail{
-				OS: &types.OS{
+				OS: types.OS{
 					Family: "debian",
 					Name:   "9.9",
 				},
@@ -515,12 +617,24 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					"sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
 				},
 			},
-			getLayerExpectations: []cache.CacheGetBlobExpectation{
+			getArtifactExpectations: []cache.LocalArtifactCacheGetArtifactExpectation{
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetArtifactArgs{
+						ArtifactID: "sha256:4791503518dff090d6a82f7a5c1fd71c41146920e2562fb64308e17ab6834b7e",
+					},
+					Returns: cache.LocalArtifactCacheGetArtifactReturns{
+						ArtifactInfo: types.ArtifactInfo{
+							SchemaVersion: 1,
+						},
+					},
+				},
+			},
+			getLayerExpectations: []cache.LocalArtifactCacheGetBlobExpectation{
+				{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
@@ -528,7 +642,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 							PackageInfos: []types.PackageInfo{
 								{
 									FilePath: "var/lib/dpkg/status.d/tzdata",
-									Packages: []types.Package{
+									Packages: types.Packages{
 										{
 											Name:       "tzdata",
 											Version:    "2019a-0+deb9u1",
@@ -558,10 +672,10 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					},
 				},
 				{
-					Args: cache.CacheGetBlobArgs{
+					Args: cache.LocalArtifactCacheGetBlobArgs{
 						BlobID: "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
 					},
-					Returns: cache.CacheGetBlobReturns{
+					Returns: cache.LocalArtifactCacheGetBlobReturns{
 						BlobInfo: types.BlobInfo{
 							SchemaVersion: 1,
 							Digest:        "sha256:dffd9992ca398466a663c87c92cfea2a2db0ae0cf33fcb99da60eec52addbfc5",
@@ -570,7 +684,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 								{
 									Type:     "composer",
 									FilePath: "php-app/composer.lock",
-									Libraries: []types.Package{
+									Libraries: types.Packages{
 										{
 											Name:    "guzzlehttp/guzzle",
 											Version: "6.2.0",
@@ -603,9 +717,12 @@ func TestApplier_ApplyLayers(t *testing.T) {
 				},
 			},
 			want: types.ArtifactDetail{
-				Packages: []types.Package{
+				Packages: types.Packages{
 					{
-						Name: "tzdata", Version: "2019a-0+deb9u1", SrcName: "tzdata", SrcVersion: "2019a-0+deb9u1",
+						Name:       "tzdata",
+						Version:    "2019a-0+deb9u1",
+						SrcName:    "tzdata",
+						SrcVersion: "2019a-0+deb9u1",
 						Layer: types.Layer{
 							Digest: "sha256:932da51564135c98a49a34a193d6cd363d8fa4184d957fde16c9d8527b3f3b02",
 							DiffID: "sha256:a187dde48cd289ac374ad8539930628314bc581a481cdb41409c9289419ddb72",
@@ -616,7 +733,7 @@ func TestApplier_ApplyLayers(t *testing.T) {
 					{
 						Type:     "composer",
 						FilePath: "php-app/composer.lock",
-						Libraries: []types.Package{
+						Libraries: types.Packages{
 							{
 								Name:    "guzzlehttp/guzzle",
 								Version: "6.2.0",
@@ -677,9 +794,9 @@ func TestApplier_ApplyLayers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := new(cache.MockCache)
+			c := new(cache.MockLocalArtifactCache)
 			c.ApplyGetBlobExpectations(tt.getLayerExpectations)
-			c.ApplyGetArtifactExpectations(tt.getImageExpectations)
+			c.ApplyGetArtifactExpectations(tt.getArtifactExpectations)
 
 			a := applier.NewApplier(c)
 
@@ -691,13 +808,9 @@ func TestApplier_ApplyLayers(t *testing.T) {
 				require.NoError(t, err, tt.name)
 			}
 
-			sort.Slice(got.Packages, func(i, j int) bool {
-				return got.Packages[i].Name < got.Packages[j].Name
-			})
+			sort.Sort(got.Packages)
 			for _, app := range got.Applications {
-				sort.Slice(app.Libraries, func(i, j int) bool {
-					return app.Libraries[i].Name < app.Libraries[j].Name
-				})
+				sort.Sort(app.Libraries)
 			}
 
 			sort.Slice(got.CustomResources, func(i, j int) bool {

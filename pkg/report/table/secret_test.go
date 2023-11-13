@@ -4,12 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
-	"github.com/khulnasoft/tunnel/pkg/report/table"
-
-	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
-
 	"github.com/stretchr/testify/assert"
+
+	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
+	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/report/table"
 )
 
 func TestSecretRenderer(t *testing.T) {

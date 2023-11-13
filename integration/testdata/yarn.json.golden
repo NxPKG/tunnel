@@ -1,7 +1,7 @@
 {
   "SchemaVersion": 2,
-  "ArtifactName": "testdata/fixtures/fs/yarn",
-  "ArtifactType": "filesystem",
+  "ArtifactName": "testdata/fixtures/repo/yarn",
+  "ArtifactType": "repository",
   "Metadata": {
     "ImageConfig": {
       "architecture": "",
@@ -21,35 +21,17 @@
       "Type": "yarn",
       "Packages": [
         {
-          "Name": "asap",
-          "Version": "2.0.6",
-          "Layer": {},
-          "Locations": [
-            {
-              "StartLine": 5,
-              "EndLine": 5
-            }
-          ]
-        },
-        {
+          "ID": "jquery@3.2.1",
           "Name": "jquery",
           "Version": "3.2.1",
+          "Licenses": [
+            "MIT"
+          ],
           "Layer": {},
           "Locations": [
             {
               "StartLine": 10,
-              "EndLine": 10
-            }
-          ]
-        },
-        {
-          "Name": "promise",
-          "Version": "8.0.3",
-          "Layer": {},
-          "Locations": [
-            {
-              "StartLine": 15,
-              "EndLine": 15
+              "EndLine": 13
             }
           ]
         }
@@ -57,9 +39,11 @@
       "Vulnerabilities": [
         {
           "VulnerabilityID": "CVE-2019-11358",
+          "PkgID": "jquery@3.2.1",
           "PkgName": "jquery",
           "InstalledVersion": "3.2.1",
           "FixedVersion": "3.4.0",
+          "Status": "fixed",
           "Layer": {},
           "SeveritySource": "ghsa",
           "PrimaryURL": "https://avd.khulnasoft.com/nvd/cve-2019-11358",

@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	rpcScanner "github.com/khulnasoft/tunnel/rpc/scanner"
-
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +18,7 @@ import (
 	fcache "github.com/khulnasoft/tunnel/pkg/fanal/cache"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 	rpcCache "github.com/khulnasoft/tunnel/rpc/cache"
+	rpcScanner "github.com/khulnasoft/tunnel/rpc/scanner"
 )
 
 type mockCacheServer struct {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,7 +20,10 @@ import (
 	"github.com/khulnasoft-lab/vul-db/pkg/metadata"
 	dbFile "github.com/khulnasoft/tunnel/pkg/db"
 	"github.com/khulnasoft/tunnel/pkg/fanal/cache"
-	"github.com/khulnasoft/tunnel/pkg/utils"
+	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/policy"
+	"github.com/khulnasoft/tunnel/pkg/utils/fsutils"
+	"github.com/khulnasoft/tunnel/pkg/version"
 	rpcCache "github.com/khulnasoft/tunnel/rpc/cache"
 )
 
@@ -59,7 +63,10 @@ func Test_dbWorker_update(t *testing.T) {
 		{
 			name: "happy path",
 			needsUpdate: needsUpdate{
-				input:  needsUpdateInput{appVersion: "1", skip: false},
+				input: needsUpdateInput{
+					appVersion: "1",
+					skip:       false,
+				},
 				output: needsUpdateOutput{needsUpdate: true},
 			},
 			download: download{
@@ -75,7 +82,21 @@ func Test_dbWorker_update(t *testing.T) {
 		{
 			name: "not update",
 			needsUpdate: needsUpdate{
-				input:  needsUpdateInput{appVersion: "1", skip: false},
+				input: needsUpdateInput{
+					appVersion: "1",
+					skip:       false,
+				},
+				output: needsUpdateOutput{needsUpdate: false},
+			},
+			args: args{appVersion: "1"},
+		},
+		{
+			name: "skip update",
+			needsUpdate: needsUpdate{
+				input: needsUpdateInput{
+					appVersion: "1",
+					skip:       true,
+				},
 				output: needsUpdateOutput{needsUpdate: false},
 			},
 			args: args{appVersion: "1"},
@@ -83,7 +104,10 @@ func Test_dbWorker_update(t *testing.T) {
 		{
 			name: "NeedsUpdate returns an error",
 			needsUpdate: needsUpdate{
-				input:  needsUpdateInput{appVersion: "1", skip: false},
+				input: needsUpdateInput{
+					appVersion: "1",
+					skip:       false,
+				},
 				output: needsUpdateOutput{err: xerrors.New("fail")},
 			},
 			args:    args{appVersion: "1"},
@@ -92,7 +116,10 @@ func Test_dbWorker_update(t *testing.T) {
 		{
 			name: "Download returns an error",
 			needsUpdate: needsUpdate{
-				input:  needsUpdateInput{appVersion: "1", skip: false},
+				input: needsUpdateInput{
+					appVersion: "1",
+					skip:       false,
+				},
 				output: needsUpdateOutput{needsUpdate: true},
 			},
 			download: download{
@@ -114,19 +141,21 @@ func Test_dbWorker_update(t *testing.T) {
 				tt.needsUpdate.input.appVersion, tt.needsUpdate.input.skip).Return(
 				tt.needsUpdate.output.needsUpdate, tt.needsUpdate.output.err)
 
+			defer func() { _ = db.Close() }()
+
 			if tt.download.call {
-				mockDBClient.On("Download", mock.Anything, mock.Anything).Run(
+				mockDBClient.On("Download", mock.Anything, mock.Anything, mock.Anything).Run(
 					func(args mock.Arguments) {
 						// fake download: copy testdata/new.db to tmpDir/db/tunnel.db
 						tmpDir := args.String(1)
 						err := os.MkdirAll(db.Dir(tmpDir), 0744)
 						require.NoError(t, err)
 
-						_, err = utils.CopyFile("testdata/new.db", db.Path(tmpDir))
+						_, err = fsutils.CopyFile("testdata/new.db", db.Path(tmpDir))
 						require.NoError(t, err)
 
 						// fake download: copy testdata/metadata.json to tmpDir/db/metadata.json
-						_, err = utils.CopyFile("testdata/metadata.json", metadata.Path(tmpDir))
+						_, err = fsutils.CopyFile("testdata/metadata.json", metadata.Path(tmpDir))
 						require.NoError(t, err)
 					}).Return(tt.download.err)
 			}
@@ -135,7 +164,7 @@ func Test_dbWorker_update(t *testing.T) {
 
 			var dbUpdateWg, requestWg sync.WaitGroup
 			err := w.update(context.Background(), tt.args.appVersion, cacheDir,
-				&dbUpdateWg, &requestWg)
+				tt.needsUpdate.input.skip, &dbUpdateWg, &requestWg, ftypes.RegistryOptions{})
 			if tt.wantErr != "" {
 				require.NotNil(t, err, tt.name)
 				assert.Contains(t, err.Error(), tt.wantErr, tt.name)
@@ -222,9 +251,10 @@ func Test_newServeMux(t *testing.T) {
 
 			c, err := cache.NewFSCache(t.TempDir())
 			require.NoError(t, err)
+			defer func() { _ = c.Close() }()
 
 			ts := httptest.NewServer(newServeMux(
-				c, dbUpdateWg, requestWg, tt.args.token, tt.args.tokenHeader),
+				c, dbUpdateWg, requestWg, tt.args.token, tt.args.tokenHeader, ""),
 			)
 			defer ts.Close()
 
@@ -246,4 +276,40 @@ func Test_newServeMux(t *testing.T) {
 			defer resp.Body.Close()
 		})
 	}
+}
+
+func Test_VersionEndpoint(t *testing.T) {
+	dbUpdateWg, requestWg := &sync.WaitGroup{}, &sync.WaitGroup{}
+	c, err := cache.NewFSCache(t.TempDir())
+	require.NoError(t, err)
+	defer func() { _ = c.Close() }()
+
+	ts := httptest.NewServer(newServeMux(
+		c, dbUpdateWg, requestWg, "", "", "testdata/testcache"),
+	)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/version")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var versionInfo version.VersionInfo
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&versionInfo))
+
+	expected := version.VersionInfo{
+		Version: "dev",
+		VulnerabilityDB: &metadata.Metadata{
+			Version:      2,
+			NextUpdate:   time.Date(2023, 7, 20, 18, 11, 37, 696263532, time.UTC),
+			UpdatedAt:    time.Date(2023, 7, 20, 12, 11, 37, 696263932, time.UTC),
+			DownloadedAt: time.Date(2023, 7, 25, 7, 1, 41, 239158000, time.UTC),
+		},
+		PolicyBundle: &policy.Metadata{
+			Digest:       "sha256:829832357626da2677955e3b427191212978ba20012b6eaa03229ca28569ae43",
+			DownloadedAt: time.Date(2023, 7, 23, 16, 40, 33, 122462000, time.UTC),
+		},
+	}
+	assert.Equal(t, expected, versionInfo)
 }

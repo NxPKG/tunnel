@@ -1,26 +1,25 @@
 package daemon
 
 import (
-	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
-
-	"github.com/khulnasoft-lab/testdocker/engine"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/docker/docker/api/types"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/khulnasoft-lab/testdocker/engine"
 )
 
 func setupPodmanSock(t *testing.T) *httptest.Server {
 	t.Helper()
 
-	runtimeDir, err := ioutil.TempDir("", "daemon")
+	runtimeDir, err := os.MkdirTemp("", "daemon")
 	require.NoError(t, err)
 
 	os.Setenv("XDG_RUNTIME_DIR", runtimeDir)
@@ -43,6 +42,10 @@ func setupPodmanSock(t *testing.T) *httptest.Server {
 }
 
 func TestPodmanImage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("podman.sock is not available for Windows CI")
+	}
+
 	type fields struct {
 		Image   v1.Image
 		opener  opener

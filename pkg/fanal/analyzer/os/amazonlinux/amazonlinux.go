@@ -9,13 +9,10 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/utils"
-
-	"github.com/khulnasoft/tunnel/pkg/fanal/types"
-
-	aos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
-
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
+	fos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
+	"github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/fanal/utils"
 )
 
 func init() {
@@ -26,7 +23,7 @@ const version = 1
 
 var requiredFiles = []string{
 	"etc/system-release",     // for 1 and 2 versions
-	"usr/lib/system-release", // for 2022 version
+	"usr/lib/system-release", // for 2022, 2023 version
 }
 
 type amazonlinuxOSAnalyzer struct{}
@@ -37,7 +34,7 @@ func (a amazonlinuxOSAnalyzer) Analyze(_ context.Context, input analyzer.Analysi
 		return nil, err
 	}
 	return &analyzer.AnalysisResult{
-		OS: &foundOS,
+		OS: foundOS,
 	}, nil
 }
 
@@ -52,17 +49,17 @@ func (a amazonlinuxOSAnalyzer) parseRelease(r io.Reader) (types.OS, error) {
 				continue
 			}
 			return types.OS{
-				Family: aos.Amazon,
+				Family: types.Amazon,
 				Name:   strings.Join(fields[3:], " "),
 			}, nil
 		} else if strings.HasPrefix(line, "Amazon Linux") {
 			return types.OS{
-				Family: aos.Amazon,
+				Family: types.Amazon,
 				Name:   strings.Join(fields[2:], " "),
 			}, nil
 		}
 	}
-	return types.OS{}, xerrors.Errorf("amazon: %w", aos.AnalyzeOSError)
+	return types.OS{}, xerrors.Errorf("amazon: %w", fos.AnalyzeOSError)
 }
 
 func (a amazonlinuxOSAnalyzer) Required(filePath string, _ os.FileInfo) bool {

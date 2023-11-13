@@ -68,17 +68,20 @@ The following table lists the configurable parameters of the Tunnel chart and th
 | `tunnel.registryPassword`              | The password used to log in at dockerhub. More info: https://khulnasoft.github.io/tunnel/dev/advanced/private-registries/docker-hub/ |      |
 | `tunnel.registryCredentialsExistingSecret` | Name of Secret containing dockerhub credentials. Alternative to the 2 parameters above, has precedence if set.                    |      |
 | `tunnel.serviceAccount.annotations`        | Additional annotations to add to the Kubernetes service account resource |     |
-| `tunnel.skipUpdate`                    | The flag to enable or disable Tunnel DB downloads from GitHub            | `false`        |
+| `tunnel.skipDBUpdate`                    | The flag to enable or disable Tunnel DB downloads from GitHub            | `false`        |
 | `tunnel.dbRepository`                  | OCI repository to retrieve the tunnel vulnerability database from        | `ghcr.io/khulnasoft-lab/vul-db`        |
 | `tunnel.cache.redis.enabled`           | Enable Redis as caching backend                                         | `false` |
 | `tunnel.cache.redis.url`               | Specify redis connection url, e.g. redis://redis.redis.svc:6379         | `` |
 | `tunnel.cache.redis.ttl`               | Specify redis TTL, e.g. 3600s or 24h                                    | `` |
+| `tunnel.cache.redis.tls`               | Enable Redis TLS with public certificates                               | `` |
 | `tunnel.serverToken`                   | The token to authenticate Tunnel client with Tunnel server                | `` |
 | `tunnel.existingSecret`                | existingSecret if an existing secret has been created outside the chart. Overrides gitHubToken, registryUsername, registryPassword, serverToken | `` |
 | `tunnel.podAnnotations`                | Annotations for pods created by statefulset                             | `{}` |
+| `tunnel.extraEnvVars`                  | extraEnvVars to be set on the container                                 | `{}` |
 | `service.name`                        | If specified, the name used for the Tunnel service                       |     |
 | `service.type`                        | Kubernetes service type                                                 | `ClusterIP` |
 | `service.port`                        | Kubernetes service port                                                 | `4954`      |
+| `service.sessionAffinity`             | Kubernetes service session affinity                                     | `ClientIP`  |
 | `httpProxy`                           | The URL of the HTTP proxy server                                        |     |
 | `httpsProxy`                          | The URL of the HTTPS proxy server                                       |     |
 | `noProxy`                             | The URLs that the proxy settings do not apply to                        |     |

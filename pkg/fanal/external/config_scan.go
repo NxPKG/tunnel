@@ -5,12 +5,12 @@ import (
 	"errors"
 
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer/config"
 	"github.com/khulnasoft/tunnel/pkg/fanal/applier"
 	"github.com/khulnasoft/tunnel/pkg/fanal/artifact"
 	"github.com/khulnasoft/tunnel/pkg/fanal/artifact/local"
 	"github.com/khulnasoft/tunnel/pkg/fanal/cache"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/misconf"
 
 	_ "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/config/all"
 )
@@ -41,11 +41,12 @@ func NewConfigScanner(cacheDir string, policyPaths, dataPaths, namespaces []stri
 
 func (s ConfigScanner) Scan(dir string) ([]types.Misconfiguration, error) {
 	art, err := local.NewArtifact(dir, s.cache, artifact.Option{
-		MisconfScannerOption: config.ScannerOption{
-			PolicyPaths:             s.policyPaths,
-			DataPaths:               s.dataPaths,
-			Namespaces:              s.namespaces,
-			DisableEmbeddedPolicies: !s.allowEmbedded,
+		MisconfScannerOption: misconf.ScannerOption{
+			PolicyPaths:              s.policyPaths,
+			DataPaths:                s.dataPaths,
+			Namespaces:               s.namespaces,
+			DisableEmbeddedPolicies:  !s.allowEmbedded,
+			DisableEmbeddedLibraries: !s.allowEmbedded,
 		},
 	})
 	if err != nil {
@@ -71,4 +72,8 @@ func (s ConfigScanner) Scan(dir string) ([]types.Misconfiguration, error) {
 	}
 
 	return mergedLayer.Misconfigurations, nil
+}
+
+func (s ConfigScanner) Close() error {
+	return s.cache.Close()
 }

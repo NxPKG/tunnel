@@ -2,22 +2,20 @@ package report
 
 import (
 	"context"
+	"io"
 	"os"
 	"sort"
 	"time"
 
-	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
-
-	"github.com/khulnasoft-lab/tml"
-
-	"github.com/khulnasoft/tunnel/pkg/flag"
-
-	"github.com/khulnasoft/tunnel/pkg/report"
-
-	"github.com/khulnasoft/tunnel/pkg/result"
+	"golang.org/x/xerrors"
 
 	"github.com/aquasecurity/defsec/pkg/scan"
+	"github.com/khulnasoft-lab/tml"
+	cr "github.com/khulnasoft/tunnel/pkg/compliance/report"
+	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/flag"
 	pkgReport "github.com/khulnasoft/tunnel/pkg/report"
+	"github.com/khulnasoft/tunnel/pkg/result"
 	"github.com/khulnasoft/tunnel/pkg/types"
 )
 
@@ -25,7 +23,7 @@ const (
 	tableFormat = "table"
 )
 
-// Report represents a kubernetes scan report
+// Report represents an AWS scan report
 type Report struct {
 	Provider        string
 	AccountID       string
@@ -43,7 +41,7 @@ func New(provider, accountID, region string, defsecResults scan.Results, scopedS
 	return &Report{
 		Provider:        provider,
 		AccountID:       accountID,
-		Results:         convertResults(defsecResults, provider, scopedServices),
+		Results:         ConvertResults(defsecResults, provider, scopedServices),
 		ServicesInScope: scopedServices,
 		Region:          region,
 	}
@@ -61,6 +59,15 @@ func (r *Report) Failed() bool {
 
 // Write writes the results in the give format
 func Write(rep *Report, opt flag.Options, fromCache bool) error {
+	output, err := opt.OutputWriter()
+	if err != nil {
+		return xerrors.Errorf("failed to create output file: %w", err)
+	}
+	defer output.Close()
+
+	if opt.Compliance.Spec.ID != "" {
+		return writeCompliance(rep, opt, output)
+	}
 
 	var filtered []types.Result
 
@@ -70,16 +77,10 @@ func Write(rep *Report, opt flag.Options, fromCache bool) error {
 	for _, resultsAtTime := range rep.Results {
 		for _, res := range resultsAtTime.Results {
 			resCopy := res
-			if err := result.Filter(
-				ctx,
-				&resCopy,
-				opt.Severities,
-				false,
-				false,
-				"",
-				"",
-				nil,
-			); err != nil {
+			if err := result.FilterResult(ctx, &resCopy, result.IgnoreConfig{}, result.FilterOption{
+				Severities:         opt.Severities,
+				IncludeNonFailures: opt.IncludeNonFailures,
+			}); err != nil {
 				return err
 			}
 			sort.Slice(resCopy.Misconfigurations, func(i, j int) bool {
@@ -103,7 +104,7 @@ func Write(rep *Report, opt flag.Options, fromCache bool) error {
 
 		// ensure color/formatting is disabled for pipes/non-pty
 		var useANSI bool
-		if opt.Output == os.Stdout {
+		if opt.Output == "" {
 			if o, err := os.Stdout.Stat(); err == nil {
 				useANSI = (o.Mode() & os.ModeCharDevice) == os.ModeCharDevice
 			}
@@ -114,33 +115,44 @@ func Write(rep *Report, opt flag.Options, fromCache bool) error {
 
 		switch {
 		case len(opt.Services) == 1 && opt.ARN == "":
-			if err := writeResourceTable(rep, filtered, opt.Output, opt.Services[0]); err != nil {
+			if err := writeResourceTable(rep, filtered, output, opt.Services[0]); err != nil {
 				return err
 			}
 		case len(opt.Services) == 1 && opt.ARN != "":
-			if err := writeResultsForARN(rep, filtered, opt.Output, opt.Services[0], opt.ARN, opt.Severities); err != nil {
+			if err := writeResultsForARN(rep, filtered, output, opt.Services[0], opt.ARN, opt.Severities); err != nil {
 				return err
 			}
 		default:
-			if err := writeServiceTable(rep, filtered, opt.Output); err != nil {
+			if err := writeServiceTable(rep, filtered, output); err != nil {
 				return err
 			}
 		}
 
 		// render cache info
 		if fromCache {
-			_ = tml.Fprintf(opt.Output, "\n<blue>This scan report was loaded from cached results. If you'd like to run a fresh scan, use --update-cache.</blue>\n")
+			_ = tml.Fprintf(output, "\n<blue>This scan report was loaded from cached results. If you'd like to run a fresh scan, use --update-cache.</blue>\n")
 		}
 
 		return nil
 	default:
-		return report.Write(base, pkgReport.Option{
-			Format:             opt.Format,
-			Output:             opt.Output,
-			Severities:         opt.Severities,
-			OutputTemplate:     opt.Template,
-			IncludeNonFailures: opt.IncludeNonFailures,
-			Trace:              opt.Trace,
-		})
+		return pkgReport.Write(base, opt)
 	}
+}
+
+func writeCompliance(rep *Report, opt flag.Options, output io.Writer) error {
+	var crr []types.Results
+	for _, r := range rep.Results {
+		crr = append(crr, r.Results)
+	}
+
+	complianceReport, err := cr.BuildComplianceReport(crr, opt.Compliance)
+	if err != nil {
+		return xerrors.Errorf("compliance report build error: %w", err)
+	}
+
+	return cr.Write(complianceReport, cr.Option{
+		Format: opt.Format,
+		Report: opt.ReportFormat,
+		Output: output,
+	})
 }

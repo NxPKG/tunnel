@@ -3,13 +3,12 @@ package vm
 import (
 	"context"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/types"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"golang.org/x/xerrors"
 
+	"github.com/khulnasoft/tunnel/pkg/cloud/aws/config"
+	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/log"
 )
 
@@ -19,12 +18,12 @@ type AMI struct {
 	imageID string
 }
 
-func newAMI(imageID string, storage Storage) (*AMI, error) {
+func newAMI(imageID string, storage Storage, region, endpoint string) (*AMI, error) {
 	// TODO: propagate context
 	ctx := context.TODO()
-	cfg, err := config.LoadDefaultConfig(ctx)
+	cfg, err := config.LoadDefaultAWSConfig(ctx, region, endpoint)
 	if err != nil {
-		return nil, xerrors.Errorf("aws config load error: %w", err)
+		return nil, err
 	}
 	client := ec2.NewFromConfig(cfg)
 	output, err := client.DescribeImages(ctx, &ec2.DescribeImagesInput{
@@ -43,7 +42,7 @@ func newAMI(imageID string, storage Storage) (*AMI, error) {
 			continue
 		}
 		log.Logger.Infof("Snapshot %s found", snapshotID)
-		ebs, err := newEBS(snapshotID, storage)
+		ebs, err := newEBS(snapshotID, storage, region, endpoint)
 		if err != nil {
 			return nil, xerrors.Errorf("new EBS error: %w", err)
 		}

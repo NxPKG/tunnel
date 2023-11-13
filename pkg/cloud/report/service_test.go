@@ -1,21 +1,18 @@
 package report
 
 import (
-	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/khulnasoft-lab/vul-db/pkg/types"
-
-	"github.com/stretchr/testify/require"
-
-	"github.com/khulnasoft/tunnel/pkg/flag"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/aquasecurity/defsec/pkg/scan"
 	defsecTypes "github.com/aquasecurity/defsec/pkg/types"
+	"github.com/khulnasoft-lab/vul-db/pkg/types"
+	"github.com/khulnasoft/tunnel/pkg/flag"
 )
 
 func Test_ServiceReport(t *testing.T) {
@@ -177,6 +174,7 @@ Scan Overview for AWS Account
         {
           "Type": "AWS",
           "ID": "AVD-AWS-9999",
+          "AVDID": "AVD-AWS-9999",
           "Title": "Do not use bad stuff",
           "Description": "Bad stuff is... bad",
           "Message": "instance is bad",
@@ -212,6 +210,7 @@ Scan Overview for AWS Account
         {
           "Type": "AWS",
           "ID": "AVD-AWS-9999",
+          "AVDID": "AVD-AWS-9999",
           "Title": "Do not use bad stuff",
           "Description": "Bad stuff is... bad",
           "Message": "something failed",
@@ -247,6 +246,7 @@ Scan Overview for AWS Account
         {
           "Type": "AWS",
           "ID": "AVD-AWS-9999",
+          "AVDID": "AVD-AWS-9999",
           "Title": "Do not use bad stuff",
           "Description": "Bad stuff is... bad",
           "Message": "something else failed",
@@ -270,6 +270,7 @@ Scan Overview for AWS Account
         {
           "Type": "AWS",
           "ID": "AVD-AWS-9999",
+          "AVDID": "AVD-AWS-9999",
           "Title": "Do not use bad stuff",
           "Description": "Bad stuff is... bad",
           "Message": "something else failed again",
@@ -316,19 +317,22 @@ Scan Overview for AWS Account
 				tt.options.AWSOptions.Services,
 			)
 
-			buffer := bytes.NewBuffer([]byte{})
-			tt.options.Output = buffer
+			output := filepath.Join(t.TempDir(), "output")
+			tt.options.Output = output
 			require.NoError(t, Write(report, tt.options, tt.fromCache))
 
 			assert.Equal(t, "AWS", report.Provider)
 			assert.Equal(t, tt.options.AWSOptions.Account, report.AccountID)
 			assert.Equal(t, tt.options.AWSOptions.Region, report.Region)
 			assert.ElementsMatch(t, tt.options.AWSOptions.Services, report.ServicesInScope)
+
+			b, err := os.ReadFile(output)
+			require.NoError(t, err)
 			if tt.options.Format == "json" {
 				// json output can be formatted/ordered differently - we just care that the data matches
-				assert.JSONEq(t, tt.expected, buffer.String())
+				assert.JSONEq(t, tt.expected, string(b))
 			} else {
-				assert.Equal(t, tt.expected, buffer.String())
+				assert.Equal(t, tt.expected, string(b))
 			}
 		})
 	}

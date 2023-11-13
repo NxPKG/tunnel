@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-	aos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 )
 
@@ -26,7 +25,10 @@ func TestAlpineReleaseOSAnalyzer_Required(t *testing.T) {
 				Content:  strings.NewReader("3.15.4"),
 			},
 			wantResult: &analyzer.AnalysisResult{
-				OS: &types.OS{Family: aos.Alpine, Name: "3.15.4"},
+				OS: types.OS{
+					Family: types.Alpine,
+					Name:   "3.15.4",
+				},
 			},
 		},
 	}

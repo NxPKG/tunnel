@@ -6,11 +6,10 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/khulnasoft-lab/tml"
-
 	"golang.org/x/term"
 
 	"github.com/khulnasoft-lab/table"
+	"github.com/khulnasoft-lab/tml"
 	pkgReport "github.com/khulnasoft/tunnel/pkg/report/table"
 	"github.com/khulnasoft/tunnel/pkg/types"
 )

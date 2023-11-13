@@ -8,8 +8,6 @@ import (
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
 )
 
-var Compliances = []string{ComplianceNsa}
-
 // Report represents a scan result
 type Report struct {
 	SchemaVersion int                 `json:",omitempty"`
@@ -40,25 +38,71 @@ type Results []Result
 
 type ResultClass string
 type Compliance = string
+type Format string
 
 const (
-	ClassOSPkg       = "os-pkgs"      // For detected packages and vulnerabilities in OS packages
-	ClassLangPkg     = "lang-pkgs"    // For detected packages and vulnerabilities in language-specific packages
-	ClassConfig      = "config"       // For detected misconfigurations
-	ClassSecret      = "secret"       // For detected secrets
-	ClassLicense     = "license"      // For detected package licenses
-	ClassLicenseFile = "license-file" // For detected licenses in files
-	ClassCustom      = "custom"
+	ClassUnknown     ResultClass = "unknown"
+	ClassOSPkg       ResultClass = "os-pkgs"      // For detected packages and vulnerabilities in OS packages
+	ClassLangPkg     ResultClass = "lang-pkgs"    // For detected packages and vulnerabilities in language-specific packages
+	ClassConfig      ResultClass = "config"       // For detected misconfigurations
+	ClassSecret      ResultClass = "secret"       // For detected secrets
+	ClassLicense     ResultClass = "license"      // For detected package licenses
+	ClassLicenseFile ResultClass = "license-file" // For detected licenses in files
+	ClassCustom      ResultClass = "custom"
 
-	// ComplianceNsa is the compliance checks for nsa
-	ComplianceNsa = Compliance("nsa")
+	ComplianceK8sNsa           = Compliance("k8s-nsa")
+	ComplianceK8sCIS           = Compliance("k8s-cis")
+	ComplianceK8sPSSBaseline   = Compliance("k8s-pss-baseline")
+	ComplianceK8sPSSRestricted = Compliance("k8s-pss-restricted")
+	ComplianceAWSCIS12         = Compliance("aws-cis-1.2")
+	ComplianceAWSCIS14         = Compliance("aws-cis-1.4")
+	ComplianceDockerCIS        = Compliance("docker-cis")
+
+	FormatTable      Format = "table"
+	FormatJSON       Format = "json"
+	FormatTemplate   Format = "template"
+	FormatSarif      Format = "sarif"
+	FormatCycloneDX  Format = "cyclonedx"
+	FormatSPDX       Format = "spdx"
+	FormatSPDXJSON   Format = "spdx-json"
+	FormatGitHub     Format = "github"
+	FormatCosignVuln Format = "cosign-vuln"
+)
+
+var (
+	SupportedFormats = []Format{
+		FormatTable,
+		FormatJSON,
+		FormatTemplate,
+		FormatSarif,
+		FormatCycloneDX,
+		FormatSPDX,
+		FormatSPDXJSON,
+		FormatGitHub,
+		FormatCosignVuln,
+	}
+	SupportedSBOMFormats = []Format{
+		FormatCycloneDX,
+		FormatSPDX,
+		FormatSPDXJSON,
+		FormatGitHub,
+	}
+	SupportedCompliances = []string{
+		ComplianceK8sNsa,
+		ComplianceK8sCIS,
+		ComplianceK8sPSSBaseline,
+		ComplianceK8sPSSRestricted,
+		ComplianceAWSCIS12,
+		ComplianceAWSCIS14,
+		ComplianceDockerCIS,
+	}
 )
 
 // Result holds a target and detected vulnerabilities
 type Result struct {
 	Target            string                     `json:"Target"`
 	Class             ResultClass                `json:"Class,omitempty"`
-	Type              string                     `json:"Type,omitempty"`
+	Type              ftypes.TargetType          `json:"Type,omitempty"`
 	Packages          []ftypes.Package           `json:"Packages,omitempty"`
 	Vulnerabilities   []DetectedVulnerability    `json:"Vulnerabilities,omitempty"`
 	MisconfSummary    *MisconfSummary            `json:"MisconfSummary,omitempty"`
@@ -73,13 +117,6 @@ func (r *Result) MarshalJSON() ([]byte, error) {
 	// It would be noisy to users, so it should be removed from the JSON output.
 	for i := range r.Vulnerabilities {
 		r.Vulnerabilities[i].VendorSeverity = nil
-	}
-
-	// remove the Highlighted attribute from the json results
-	for i := range r.Misconfigurations {
-		for li := range r.Misconfigurations[i].CauseMetadata.Code.Lines {
-			r.Misconfigurations[i].CauseMetadata.Code.Lines[li].Highlighted = ""
-		}
 	}
 
 	// Notice the Alias struct prevents MarshalJSON being called infinitely

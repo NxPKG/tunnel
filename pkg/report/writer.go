@@ -5,94 +5,88 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/khulnasoft/tunnel/pkg/report/predicate"
-	"github.com/khulnasoft/tunnel/pkg/report/table"
-
 	"golang.org/x/xerrors"
 
-	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
+	cr "github.com/khulnasoft/tunnel/pkg/compliance/report"
+	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
+	"github.com/khulnasoft/tunnel/pkg/flag"
 	"github.com/khulnasoft/tunnel/pkg/log"
 	"github.com/khulnasoft/tunnel/pkg/report/cyclonedx"
 	"github.com/khulnasoft/tunnel/pkg/report/github"
+	"github.com/khulnasoft/tunnel/pkg/report/predicate"
 	"github.com/khulnasoft/tunnel/pkg/report/spdx"
+	"github.com/khulnasoft/tunnel/pkg/report/table"
 	"github.com/khulnasoft/tunnel/pkg/types"
 )
 
 const (
 	SchemaVersion = 2
-
-	FormatTable      = "table"
-	FormatJSON       = "json"
-	FormatTemplate   = "template"
-	FormatSarif      = "sarif"
-	FormatCycloneDX  = "cyclonedx"
-	FormatSPDX       = "spdx"
-	FormatSPDXJSON   = "spdx-json"
-	FormatGitHub     = "github"
-	FormatCosignVuln = "cosign-vuln"
 )
-
-var (
-	SupportedSBOMFormats = []string{FormatCycloneDX, FormatSPDX, FormatSPDXJSON, FormatGitHub}
-)
-
-type Option struct {
-	AppVersion string
-
-	Format         string
-	Output         io.Writer
-	Tree           bool
-	Severities     []dbTypes.Severity
-	OutputTemplate string
-
-	// For misconfigurations
-	IncludeNonFailures bool
-	Trace              bool
-
-	// For licenses
-	LicenseRiskThreshold int
-	IgnoredLicenses      []string
-}
 
 // Write writes the result to output, format as passed in argument
-func Write(report types.Report, option Option) error {
+func Write(report types.Report, option flag.Options) error {
+	output, err := option.OutputWriter()
+	if err != nil {
+		return xerrors.Errorf("failed to create a file: %w", err)
+	}
+	defer output.Close()
+
+	// Compliance report
+	if option.Compliance.Spec.ID != "" {
+		return complianceWrite(report, option, output)
+	}
+
 	var writer Writer
 	switch option.Format {
-	case FormatTable:
+	case types.FormatTable:
 		writer = &table.Writer{
-			Output:               option.Output,
+			Output:               output,
 			Severities:           option.Severities,
-			Tree:                 option.Tree,
+			Tree:                 option.DependencyTree,
 			ShowMessageOnce:      &sync.Once{},
 			IncludeNonFailures:   option.IncludeNonFailures,
 			Trace:                option.Trace,
 			LicenseRiskThreshold: option.LicenseRiskThreshold,
 			IgnoredLicenses:      option.IgnoredLicenses,
 		}
-	case FormatJSON:
-		writer = &JSONWriter{Output: option.Output}
-	case FormatGitHub:
-		writer = &github.Writer{Output: option.Output, Version: option.AppVersion}
-	case FormatCycloneDX:
+	case types.FormatJSON:
+		writer = &JSONWriter{Output: output}
+	case types.FormatGitHub:
+		writer = &github.Writer{
+			Output:  output,
+			Version: option.AppVersion,
+		}
+	case types.FormatCycloneDX:
 		// TODO: support xml format option with cyclonedx writer
-		writer = cyclonedx.NewWriter(option.Output, option.AppVersion)
-	case FormatSPDX, FormatSPDXJSON:
-		writer = spdx.NewWriter(option.Output, option.AppVersion, option.Format)
-	case FormatTemplate:
+		writer = cyclonedx.NewWriter(output, option.AppVersion)
+	case types.FormatSPDX, types.FormatSPDXJSON:
+		writer = spdx.NewWriter(output, option.AppVersion, option.Format)
+	case types.FormatTemplate:
 		// We keep `sarif.tpl` template working for backward compatibility for a while.
-		if strings.HasPrefix(option.OutputTemplate, "@") && strings.HasSuffix(option.OutputTemplate, "sarif.tpl") {
+		if strings.HasPrefix(option.Template, "@") && strings.HasSuffix(option.Template, "sarif.tpl") {
 			log.Logger.Warn("Using `--template sarif.tpl` is deprecated. Please migrate to `--format sarif`. See https://github.com/khulnasoft/tunnel/discussions/1571")
-			writer = SarifWriter{Output: option.Output, Version: option.AppVersion}
+			writer = &SarifWriter{
+				Output:  output,
+				Version: option.AppVersion,
+			}
 			break
 		}
 		var err error
-		if writer, err = NewTemplateWriter(option.Output, option.OutputTemplate); err != nil {
+		if writer, err = NewTemplateWriter(output, option.Template); err != nil {
 			return xerrors.Errorf("failed to initialize template writer: %w", err)
 		}
-	case FormatSarif:
-		writer = SarifWriter{Output: option.Output, Version: option.AppVersion}
-	case FormatCosignVuln:
-		writer = predicate.NewVulnWriter(option.Output, option.AppVersion)
+	case types.FormatSarif:
+		target := ""
+		if report.ArtifactType == ftypes.ArtifactFilesystem {
+			target = option.Target
+		}
+		writer = &SarifWriter{
+			Output:  output,
+			Version: option.AppVersion,
+			Target:  target,
+		}
+	case types.FormatCosignVuln:
+		writer = predicate.NewVulnWriter(output, option.AppVersion)
 	default:
 		return xerrors.Errorf("unknown format: %v", option.Format)
 	}
@@ -101,6 +95,19 @@ func Write(report types.Report, option Option) error {
 		return xerrors.Errorf("failed to write results: %w", err)
 	}
 	return nil
+}
+
+func complianceWrite(report types.Report, opt flag.Options, output io.Writer) error {
+	complianceReport, err := cr.BuildComplianceReport([]types.Results{report.Results}, opt.Compliance)
+	if err != nil {
+		return xerrors.Errorf("compliance report build error: %w", err)
+	}
+	return cr.Write(complianceReport, cr.Option{
+		Format:     opt.Format,
+		Report:     opt.ReportFormat,
+		Output:     output,
+		Severities: opt.Severities,
+	})
 }
 
 // Writer defines the result write operation

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	dbTypes "github.com/khulnasoft-lab/vul-db/pkg/types"
 	"github.com/khulnasoft/tunnel/pkg/clock"
@@ -177,11 +178,9 @@ func TestReportWriter_Template(t *testing.T) {
 				},
 			}
 
-			err := report.Write(inputReport, report.Option{
-				Format:         "template",
-				Output:         &got,
-				OutputTemplate: tc.template,
-			})
+			w, err := report.NewTemplateWriter(&got, tc.template)
+			require.NoError(t, err)
+			err = w.Write(inputReport)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, got.String())
 		})

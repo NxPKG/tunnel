@@ -1,12 +1,11 @@
 package mariner
 
 import (
-	"strings"
-
 	version "github.com/knqyf263/go-rpm-version"
 	"golang.org/x/xerrors"
 
 	"github.com/khulnasoft-lab/vul-db/pkg/vulnsrc/mariner"
+	osver "github.com/khulnasoft/tunnel/pkg/detector/ospkg/version"
 	ftypes "github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/log"
 	"github.com/khulnasoft/tunnel/pkg/scanner/utils"
@@ -30,9 +29,7 @@ func (s *Scanner) Detect(osVer string, _ *ftypes.Repository, pkgs []ftypes.Packa
 	log.Logger.Info("Detecting CBL-Mariner vulnerabilities...")
 
 	// e.g. 1.0.20210127
-	if strings.Count(osVer, ".") > 1 {
-		osVer = osVer[:strings.LastIndex(osVer, ".")]
-	}
+	osVer = osver.Minor(osVer)
 
 	log.Logger.Debugf("CBL-Mariner: os version: %s", osVer)
 	log.Logger.Debugf("CBL-Mariner: the number of packages: %d", len(pkgs))
@@ -45,15 +42,14 @@ func (s *Scanner) Detect(osVer string, _ *ftypes.Repository, pkgs []ftypes.Packa
 			return nil, xerrors.Errorf("failed to get CBL-Mariner advisories: %w", err)
 		}
 
-		installed := utils.FormatSrcVersion(pkg)
-		installedVersion := version.NewVersion(installed)
+		sourceVersion := version.NewVersion(utils.FormatSrcVersion(pkg))
 
 		for _, adv := range advisories {
 			vuln := types.DetectedVulnerability{
 				VulnerabilityID:  adv.VulnerabilityID,
 				PkgName:          pkg.Name,
-				InstalledVersion: installed,
-				Ref:              pkg.Ref,
+				InstalledVersion: utils.FormatVersion(pkg),
+				PkgRef:           pkg.Ref,
 				Layer:            pkg.Layer,
 				DataSource:       adv.DataSource,
 			}
@@ -66,7 +62,7 @@ func (s *Scanner) Detect(osVer string, _ *ftypes.Repository, pkgs []ftypes.Packa
 
 			// Patched vulnerabilities
 			fixedVersion := version.NewVersion(adv.FixedVersion)
-			if installedVersion.LessThan(fixedVersion) {
+			if sourceVersion.LessThan(fixedVersion) {
 				vuln.FixedVersion = fixedVersion.String()
 				vulns = append(vulns, vuln)
 			}
@@ -76,8 +72,8 @@ func (s *Scanner) Detect(osVer string, _ *ftypes.Repository, pkgs []ftypes.Packa
 	return vulns, nil
 }
 
-// IsSupportedVersion checks the OS version can be scanned using CBL-Mariner scanner
-func (s *Scanner) IsSupportedVersion(osFamily, osVer string) bool {
+// IsSupportedVersion checks if the version is supported.
+func (s *Scanner) IsSupportedVersion(_ ftypes.OSType, _ string) bool {
 	// EOL is not in public at the moment.
 	return true
 }

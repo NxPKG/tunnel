@@ -14,7 +14,7 @@ import (
 
 	"github.com/khulnasoft/tunnel/pkg/downloader"
 	"github.com/khulnasoft/tunnel/pkg/log"
-	"github.com/khulnasoft/tunnel/pkg/utils"
+	"github.com/khulnasoft/tunnel/pkg/utils/fsutils"
 )
 
 const (
@@ -26,7 +26,7 @@ var (
 
 	officialPlugins = map[string]string{
 		"kubectl": "github.com/khulnasoft/tunnel-plugin-kubectl",
-		"khulnasoft":    "github.com/khulnasoft-lab/vul-plugin-khulnasoft",
+		"khulnasoft":    "github.com/khulnasoft/tunnel-plugin-khulnasoft",
 	}
 )
 
@@ -171,7 +171,7 @@ func Install(ctx context.Context, url string, force bool) (Plugin, error) {
 	}
 
 	// Copy plugin.yaml into the plugin dir
-	if _, err = utils.CopyFile(filepath.Join(tempDir, configFile), filepath.Join(pluginDir, configFile)); err != nil {
+	if _, err = fsutils.CopyFile(filepath.Join(tempDir, configFile), filepath.Join(pluginDir, configFile)); err != nil {
 		return Plugin{}, xerrors.Errorf("failed to copy plugin.yaml: %w", err)
 	}
 
@@ -314,7 +314,7 @@ func loadMetadata(dir string) (Plugin, error) {
 }
 
 func dir() string {
-	return filepath.Join(utils.HomeDir(), pluginsRelativeDir)
+	return filepath.Join(fsutils.HomeDir(), pluginsRelativeDir)
 }
 
 func isInstalled(url string) (Plugin, bool) {

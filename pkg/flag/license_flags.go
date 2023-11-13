@@ -9,57 +9,64 @@ var (
 	LicenseFull = Flag{
 		Name:       "license-full",
 		ConfigName: "license.full",
-		Value:      false,
+		Default:    false,
 		Usage:      "eagerly look for licenses in source code headers and license files",
 	}
 	IgnoredLicenses = Flag{
 		Name:       "ignored-licenses",
 		ConfigName: "license.ignored",
-		Value:      []string{},
+		Default:    []string{},
 		Usage:      "specify a list of license to ignore",
+	}
+	LicenseConfidenceLevel = Flag{
+		Name:       "license-confidence-level",
+		ConfigName: "license.confidenceLevel",
+		Default:    0.9,
+		Usage:      "specify license classifier's confidence level",
 	}
 
 	// LicenseForbidden is an option only in a config file
 	LicenseForbidden = Flag{
 		ConfigName: "license.forbidden",
-		Value:      licensing.ForbiddenLicenses,
+		Default:    licensing.ForbiddenLicenses,
 		Usage:      "forbidden licenses",
 	}
 	// LicenseRestricted is an option only in a config file
 	LicenseRestricted = Flag{
 		ConfigName: "license.restricted",
-		Value:      licensing.RestrictedLicenses,
+		Default:    licensing.RestrictedLicenses,
 		Usage:      "restricted licenses",
 	}
 	// LicenseReciprocal is an option only in a config file
 	LicenseReciprocal = Flag{
 		ConfigName: "license.reciprocal",
-		Value:      licensing.ReciprocalLicenses,
+		Default:    licensing.ReciprocalLicenses,
 		Usage:      "reciprocal licenses",
 	}
 	// LicenseNotice is an option only in a config file
 	LicenseNotice = Flag{
 		ConfigName: "license.notice",
-		Value:      licensing.NoticeLicenses,
+		Default:    licensing.NoticeLicenses,
 		Usage:      "notice licenses",
 	}
 	// LicensePermissive is an option only in a config file
 	LicensePermissive = Flag{
 		ConfigName: "license.permissive",
-		Value:      licensing.PermissiveLicenses,
+		Default:    licensing.PermissiveLicenses,
 		Usage:      "permissive licenses",
 	}
 	// LicenseUnencumbered is an option only in a config file
 	LicenseUnencumbered = Flag{
 		ConfigName: "license.unencumbered",
-		Value:      licensing.UnencumberedLicenses,
+		Default:    licensing.UnencumberedLicenses,
 		Usage:      "unencumbered licenses",
 	}
 )
 
 type LicenseFlagGroup struct {
-	LicenseFull     *Flag
-	IgnoredLicenses *Flag
+	LicenseFull            *Flag
+	IgnoredLicenses        *Flag
+	LicenseConfidenceLevel *Flag
 
 	// License Categories
 	LicenseForbidden    *Flag // mapped to CRITICAL
@@ -71,22 +78,24 @@ type LicenseFlagGroup struct {
 }
 
 type LicenseOptions struct {
-	LicenseFull          bool
-	IgnoredLicenses      []string
-	LicenseRiskThreshold int
-	LicenseCategories    map[types.LicenseCategory][]string
+	LicenseFull            bool
+	IgnoredLicenses        []string
+	LicenseConfidenceLevel float64
+	LicenseRiskThreshold   int
+	LicenseCategories      map[types.LicenseCategory][]string
 }
 
 func NewLicenseFlagGroup() *LicenseFlagGroup {
 	return &LicenseFlagGroup{
-		LicenseFull:         &LicenseFull,
-		IgnoredLicenses:     &IgnoredLicenses,
-		LicenseForbidden:    &LicenseForbidden,
-		LicenseRestricted:   &LicenseRestricted,
-		LicenseReciprocal:   &LicenseReciprocal,
-		LicenseNotice:       &LicenseNotice,
-		LicensePermissive:   &LicensePermissive,
-		LicenseUnencumbered: &LicenseUnencumbered,
+		LicenseFull:            &LicenseFull,
+		IgnoredLicenses:        &IgnoredLicenses,
+		LicenseConfidenceLevel: &LicenseConfidenceLevel,
+		LicenseForbidden:       &LicenseForbidden,
+		LicenseRestricted:      &LicenseRestricted,
+		LicenseReciprocal:      &LicenseReciprocal,
+		LicenseNotice:          &LicenseNotice,
+		LicensePermissive:      &LicensePermissive,
+		LicenseUnencumbered:    &LicenseUnencumbered,
 	}
 }
 
@@ -96,11 +105,11 @@ func (f *LicenseFlagGroup) Name() string {
 
 func (f *LicenseFlagGroup) Flags() []*Flag {
 	return []*Flag{f.LicenseFull, f.IgnoredLicenses, f.LicenseForbidden, f.LicenseRestricted, f.LicenseReciprocal,
-		f.LicenseNotice, f.LicensePermissive, f.LicenseUnencumbered}
+		f.LicenseNotice, f.LicensePermissive, f.LicenseUnencumbered, f.LicenseConfidenceLevel}
 }
 
 func (f *LicenseFlagGroup) ToOptions() LicenseOptions {
-	licenseCategories := map[types.LicenseCategory][]string{}
+	licenseCategories := make(map[types.LicenseCategory][]string)
 	licenseCategories[types.CategoryForbidden] = getStringSlice(f.LicenseForbidden)
 	licenseCategories[types.CategoryRestricted] = getStringSlice(f.LicenseRestricted)
 	licenseCategories[types.CategoryReciprocal] = getStringSlice(f.LicenseReciprocal)
@@ -109,8 +118,9 @@ func (f *LicenseFlagGroup) ToOptions() LicenseOptions {
 	licenseCategories[types.CategoryUnencumbered] = getStringSlice(f.LicenseUnencumbered)
 
 	return LicenseOptions{
-		LicenseFull:       getBool(f.LicenseFull),
-		IgnoredLicenses:   getStringSlice(f.IgnoredLicenses),
-		LicenseCategories: licenseCategories,
+		LicenseFull:            getBool(f.LicenseFull),
+		IgnoredLicenses:        getStringSlice(f.IgnoredLicenses),
+		LicenseConfidenceLevel: getFloat(f.LicenseConfidenceLevel),
+		LicenseCategories:      licenseCategories,
 	}
 }

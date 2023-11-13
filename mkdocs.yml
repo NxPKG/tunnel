@@ -4,12 +4,14 @@ site_description: A Simple and Comprehensive Vulnerability Scanner for Container
 docs_dir: docs/
 repo_name: GitHub
 repo_url: https://github.com/khulnasoft/tunnel
-edit_uri: ""
+edit_uri: "blob/main/docs/"
 
 nav:
   - Getting Started: 
       - Overview: index.md
       - Installation: getting-started/installation.md
+      - Signature Verification: getting-started/signature-verification.md
+      - FAQ: getting-started/faq.md
   - Tutorials:
       - Overview: tutorials/overview.md   
       - CI/CD:
@@ -22,88 +24,108 @@ nav:
           - AWS CodePipeline: tutorials/integrations/aws-codepipeline.md
           - AWS Security Hub: tutorials/integrations/aws-security-hub.md
           - Azure: tutorials/integrations/azure-devops.md
-      - Signing:
-          - Vulnerability Scan Record Attestation: tutorials/signing/vuln-attestation.md
       - Kubernetes:
           - Cluster Scanning: tutorials/kubernetes/cluster-scanning.md
           - Kyverno: tutorials/kubernetes/kyverno.md
           - GitOps: tutorials/kubernetes/gitops.md
-      - Additional Resources: 
+      - Misconfiguration:
+          - Terraform scanning: tutorials/misconfiguration/terraform.md
+      - Signing:
+          - Vulnerability Scan Record Attestation: tutorials/signing/vuln-attestation.md
+      - Shell:
+          - Completion: tutorials/shell/shell-completion.md
+      - Additional Resources:
           - Additional Resources: tutorials/additional-resources/references.md
           - Community References: tutorials/additional-resources/community.md
           - CKS Reference: tutorials/additional-resources/cks.md
-  - CLI:
+  - Docs:
       - Overview: docs/index.md
-      - Vulnerability:
-          - Scanning:
-              - Overview: docs/vulnerability/scanning/index.md
-              - Container Image: docs/vulnerability/scanning/image.md
-              - Filesystem: docs/vulnerability/scanning/filesystem.md
-              - Rootfs: docs/vulnerability/scanning/rootfs.md
-              - Git Repository: docs/vulnerability/scanning/git-repository.md
-          - Detection:
-              - OS Packages: docs/vulnerability/detection/os.md
-              - Language-specific Packages: docs/vulnerability/detection/language.md
-              - Data Sources: docs/vulnerability/detection/data-source.md
-              - Supported: docs/vulnerability/detection/supported.md
-          - Examples:
-              - Vulnerability Filtering: docs/vulnerability/examples/filter.md
-              - Report Formats: docs/vulnerability/examples/report.md
-              - Vulnerability DB: docs/vulnerability/examples/db.md
-              - Cache: docs/vulnerability/examples/cache.md
-              - Others: docs/vulnerability/examples/others.md
-          - Distributions: docs/vulnerability/distributions.md
-          - Languages:
-              - Go: docs/vulnerability/languages/golang.md
-      - Misconfiguration:
-          - Scanning: docs/misconfiguration/scanning.md
-          - Policy:
-              - Built-in Policies: docs/misconfiguration/policy/builtin.md
-              - Exceptions: docs/misconfiguration/policy/exceptions.md
-          - Custom Policies:
-              - Overview: docs/misconfiguration/custom/index.md
-              - Data: docs/misconfiguration/custom/data.md
-              - Combine: docs/misconfiguration/custom/combine.md
-              - Testing: docs/misconfiguration/custom/testing.md
-              - Debugging Policies: docs/misconfiguration/custom/debug.md
-              - Examples: docs/misconfiguration/custom/examples.md
-          - Options:
-              - Policy: docs/misconfiguration/options/policy.md
-              - Filtering: docs/misconfiguration/options/filter.md
-              - Report Formats: docs/misconfiguration/options/report.md
-              - Value Overrides: docs/misconfiguration/options/values.md
-              - Others: docs/misconfiguration/options/others.md
-          - Comparison:
-              - vs Conftest: docs/misconfiguration/comparison/conftest.md
-              - vs tfsec: docs/misconfiguration/comparison/tfsec.md
-              - vs cfsec: docs/misconfiguration/comparison/cfsec.md
-      - Secret:
-          - Scanning: docs/secret/scanning.md
-          - Configuration: docs/secret/configuration.md
-          - Examples: docs/secret/examples.md
-      - License:
-            - Scanning: docs/licenses/scanning.md
-      - Kubernetes:
-          - CLI:
-              - Scanning: docs/kubernetes/cli/scanning.md
-              - Compliance: docs/kubernetes/cli/compliance.md
-          - Operator:
-              - Overview: docs/kubernetes/operator/index.md
-      - Cloud:
-          - AWS: docs/cloud/aws/scanning.md
-      - Virtual Machine Image:
-          - Overview: docs/vm/index.md
-          - AWS EC2: docs/vm/aws.md
+      - Target:
+          - Container Image: docs/target/container_image.md
+          - Filesystem: docs/target/filesystem.md
+          - Rootfs: docs/target/rootfs.md
+          - Code Repository: docs/target/repository.md
+          - Virtual Machine Image: docs/target/vm.md
+          - Kubernetes: docs/target/kubernetes.md
+          - AWS: docs/target/aws.md
+          - SBOM: docs/target/sbom.md
+      - Scanner:
+          - Vulnerability: docs/scanner/vulnerability.md
+          - Misconfiguration:
+              - Overview: docs/scanner/misconfiguration/index.md
+              - Policy:
+                  - Built-in Policies: docs/scanner/misconfiguration/policy/builtin.md
+                  - Exceptions: docs/scanner/misconfiguration/policy/exceptions.md
+              - Custom Policies:
+                  - Overview: docs/scanner/misconfiguration/custom/index.md
+                  - Data: docs/scanner/misconfiguration/custom/data.md
+                  - Combine: docs/scanner/misconfiguration/custom/combine.md
+                  - Selectors: docs/scanner/misconfiguration/custom/selectors.md
+                  - Schemas: docs/scanner/misconfiguration/custom/schema.md
+                  - Testing: docs/scanner/misconfiguration/custom/testing.md
+                  - Debugging Policies: docs/scanner/misconfiguration/custom/debug.md
+          - Secret: docs/scanner/secret.md
+          - License: docs/scanner/license.md
+      - Coverage:
+          - Overview: docs/coverage/index.md
+          - OS:
+              - Overview: docs/coverage/os/index.md
+              - AlmaLinux: docs/coverage/os/alma.md
+              - Alpine Linux: docs/coverage/os/alpine.md
+              - Amazon Linux: docs/coverage/os/amazon.md
+              - CBL-Mariner: docs/coverage/os/cbl-mariner.md
+              - CentOS: docs/coverage/os/centos.md
+              - Chainguard: docs/coverage/os/chainguard.md
+              - Debian: docs/coverage/os/debian.md
+              - Oracle Linux: docs/coverage/os/oracle.md
+              - Photon OS: docs/coverage/os/photon.md
+              - Red Hat: docs/coverage/os/rhel.md
+              - Rocky Linux: docs/coverage/os/rocky.md
+              - SUSE: docs/coverage/os/suse.md
+              - Ubuntu: docs/coverage/os/ubuntu.md
+              - Wolfi: docs/coverage/os/wolfi.md
+              - Google Distroless (Images): docs/coverage/os/google-distroless.md
+              - Bitnami (Images): docs/coverage/os/bitnami.md
+          - Language:
+              - Overview: docs/coverage/language/index.md
+              - C/C++: docs/coverage/language/c.md
+              - Dart: docs/coverage/language/dart.md
+              - .NET: docs/coverage/language/dotnet.md
+              - Elixir: docs/coverage/language/elixir.md
+              - Go: docs/coverage/language/golang.md
+              - Java: docs/coverage/language/java.md
+              - Node.js: docs/coverage/language/nodejs.md
+              - PHP: docs/coverage/language/php.md
+              - Python: docs/coverage/language/python.md
+              - Ruby: docs/coverage/language/ruby.md
+              - Rust: docs/coverage/language/rust.md
+              - Swift: docs/coverage/language/swift.md
+          - IaC:
+              - Overview: docs/coverage/iac/index.md
+              - Azure ARM Template: docs/coverage/iac/azure-arm.md
+              - CloudFormation: docs/coverage/iac/cloudformation.md
+              - Docker: docs/coverage/iac/docker.md
+              - Helm: docs/coverage/iac/helm.md
+              - Kubernetes: docs/coverage/iac/kubernetes.md
+              - Terraform: docs/coverage/iac/terraform.md
+          - Kubernetes: docs/coverage/kubernetes.md
+      - Configuration:
+          - Overview: docs/configuration/index.md
+          - Filtering: docs/configuration/filtering.md
+          - Skipping Files: docs/configuration/skipping.md
+          - Reporting: docs/configuration/reporting.md
+          - Cache: docs/configuration/cache.md
+          - DB: docs/configuration/db.md
+          - Others: docs/configuration/others.md
+      - Supply Chain:
+          - SBOM: docs/supply-chain/sbom.md
+          - Attestation:
+                - SBOM: docs/supply-chain/attestation/sbom.md
+                - Cosign Vulnerability Scan Record: docs/supply-chain/attestation/vuln.md
+                - SBOM Attestation in Rekor: docs/supply-chain/attestation/rekor.md
+          - VEX: docs/supply-chain/vex.md
       - Compliance:
-            - Reports:  docs/compliance/compliance.md
-      - SBOM:
-          - Overview: docs/sbom/index.md
-          - CycloneDX: docs/sbom/cyclonedx.md
-          - SPDX: docs/sbom/spdx.md
-      - Attestation:
-          - SBOM: docs/attestation/sbom.md
-          - Cosign Vulnerability Scan Record: docs/attestation/vuln.md
-          - SBOM Attestation in Rekor: docs/attestation/rekor.md
+          - Reports:  docs/compliance/compliance.md
       - Advanced:
           - Modules: docs/advanced/modules.md
           - Plugins: docs/advanced/plugins.md
@@ -111,9 +133,6 @@ nav:
           - Container Image:
               - Embed in Dockerfile: docs/advanced/container/embed-in-dockerfile.md
               - Unpacked container image filesystem: docs/advanced/container/unpacked-filesystem.md
-              - OCI Image: docs/advanced/container/oci.md
-              - Podman: docs/advanced/container/podman.md
-              - containerd: docs/advanced/container/containerd.md
               - Private Docker Registries:
                   - Overview: docs/advanced/private-registries/index.md
                   - Docker Hub: docs/advanced/private-registries/docker-hub.md
@@ -122,21 +141,32 @@ nav:
                   - ACR (Azure Container Registry): docs/advanced/private-registries/acr.md
                   - Self-Hosted: docs/advanced/private-registries/self.md
       - References:
-          - Customization:
-              - Environment variables: docs/references/customization/envs.md
-              - Config file: docs/references/customization/config-file.md
-          - CLI:
-              - Overview: docs/references/cli/index.md
-              - Image: docs/references/cli/image.md
-              - Config: docs/references/cli/config.md
-              - Filesystem: docs/references/cli/fs.md
-              - Rootfs: docs/references/cli/rootfs.md
-              - Repository: docs/references/cli/repo.md
-              - Client: docs/references/cli/client.md
-              - Server: docs/references/cli/server.md
-              - Plugin: docs/references/cli/plugin.md
-              - SBOM: docs/references/cli/sbom.md
-              - Module: docs/references/cli/module.md
+          - Configuration:
+              - CLI:
+                  - Overview: docs/references/configuration/cli/tunnel.md
+                  - AWS: docs/references/configuration/cli/tunnel_aws.md
+                  - Config: docs/references/configuration/cli/tunnel_config.md
+                  - Convert: docs/references/configuration/cli/tunnel_convert.md
+                  - Filesystem: docs/references/configuration/cli/tunnel_filesystem.md
+                  - Image: docs/references/configuration/cli/tunnel_image.md
+                  - Kubernetes: docs/references/configuration/cli/tunnel_kubernetes.md
+                  - Module: docs/references/configuration/cli/tunnel_module.md
+                  - Module Install: docs/references/configuration/cli/tunnel_module_install.md
+                  - Module Uninstall: docs/references/configuration/cli/tunnel_module_uninstall.md
+                  - Plugin: docs/references/configuration/cli/tunnel_plugin.md
+                  - Plugin Info: docs/references/configuration/cli/tunnel_plugin_info.md
+                  - Plugin Install: docs/references/configuration/cli/tunnel_plugin_install.md
+                  - Plugin List: docs/references/configuration/cli/tunnel_plugin_list.md
+                  - Plugin Run: docs/references/configuration/cli/tunnel_plugin_run.md
+                  - Plugin Uninstall: docs/references/configuration/cli/tunnel_plugin_uninstall.md
+                  - Plugin Update: docs/references/configuration/cli/tunnel_plugin_update.md
+                  - Repository: docs/references/configuration/cli/tunnel_repository.md
+                  - Rootfs: docs/references/configuration/cli/tunnel_rootfs.md
+                  - SBOM: docs/references/configuration/cli/tunnel_sbom.md
+                  - Server: docs/references/configuration/cli/tunnel_server.md
+                  - Version: docs/references/configuration/cli/tunnel_version.md
+                  - VM: docs/references/configuration/cli/tunnel_vm.md
+              - Config file: docs/references/configuration/config-file.md
           - Modes:
               - Standalone: docs/references/modes/standalone.md
               - Client/Server: docs/references/modes/client-server.md
@@ -146,22 +176,29 @@ nav:
     - CI/CD: ecosystem/cicd.md
     - IDE and Dev tools: ecosystem/ide.md
     - Production and Clouds: ecosystem/prod.md
+    - Security Management: ecosystem/security.md
   - Contributing:
       - How to contribute:
           - Issues: community/contribute/issue.md
+          - Discussions: community/contribute/discussion.md
           - Pull Requests: community/contribute/pr.md
       - Maintainer:
           - Help Wanted: community/maintainer/help-wanted.md
           - Triage: community/maintainer/triage.md
 theme:
   name: material
+  custom_dir: docs/overrides
   language: "en"
   logo: imgs/logo-white.svg
   features:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.sections
+    - navigation.footer
+    - content.action.edit
     - content.tabs.link
+    - content.code.annotate
+    - content.code.copy
 
 markdown_extensions:
   - pymdownx.highlight
@@ -182,6 +219,14 @@ extra:
   version:
     method: mike
     provider: mike
+    default: latest
+  social:
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/KhulnasoftTunnel
+    - icon: fontawesome/brands/github
+      link: https://github.com/khulnasoft/tunnel
+    - icon: fontawesome/brands/slack
+      link: https://github.com/khulnasoft/tunnel
 
 plugins:
   - search

@@ -6,11 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
-
 	"golang.org/x/xerrors"
 
-	aos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
+	"github.com/khulnasoft/tunnel/pkg/fanal/analyzer"
+	fos "github.com/khulnasoft/tunnel/pkg/fanal/analyzer/os"
 	"github.com/khulnasoft/tunnel/pkg/fanal/types"
 	"github.com/khulnasoft/tunnel/pkg/fanal/utils"
 )
@@ -35,12 +34,15 @@ func (a centOSAnalyzer) Analyze(_ context.Context, input analyzer.AnalysisInput)
 		switch strings.ToLower(result[1]) {
 		case "centos", "centos linux":
 			return &analyzer.AnalysisResult{
-				OS: &types.OS{Family: aos.CentOS, Name: result[2]},
+				OS: types.OS{
+					Family: types.CentOS,
+					Name:   result[2],
+				},
 			}, nil
 		}
 	}
 
-	return nil, xerrors.Errorf("centos: %w", aos.AnalyzeOSError)
+	return nil, xerrors.Errorf("centos: %w", fos.AnalyzeOSError)
 }
 
 func (a centOSAnalyzer) Required(filePath string, _ os.FileInfo) bool {
